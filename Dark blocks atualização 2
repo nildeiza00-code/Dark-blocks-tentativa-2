@@ -1,6 +1,6 @@
 --[[
     Script Profissional de Teleporte + Noclip para Roblox
-    Autor: nildeiza00-code + Copilot
+    Autor: nildeiza00-code + Melhorias para Anti-Cheat
     Compatível com Delta
 ]]
 
@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
 
 local localPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -15,7 +16,7 @@ local Camera = workspace.CurrentCamera
 local teleportKey = Enum.KeyCode.F
 local noclipKey = Enum.KeyCode.G
 
-local teleportDestination = Vector3.new(100,50,200)
+local teleportDestination = Vector3.new(100, 50, 200)
 local isNoclipActive = false
 local isTeleporting = false
 
@@ -31,29 +32,29 @@ local function createTeleportGUI()
     screenGui.Parent = localPlayer.PlayerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,240,0,160)
-    frame.Position = UDim2.new(0.5,-120,0.1,0)
-    frame.BackgroundColor3 = Color3.fromRGB(25,25,30)
+    frame.Size = UDim2.new(0, 240, 0, 160)
+    frame.Position = UDim2.new(0.5, -120, 0.1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     frame.BorderSizePixel = 0
     frame.BackgroundTransparency = 0.1
     frame.Parent = screenGui
 
     local title = Instance.new("TextLabel")
     title.Text = "TELEPORTE PRO"
-    title.Size = UDim2.new(1,0,0,28)
+    title.Size = UDim2.new(1, 0, 0, 28)
     title.BackgroundTransparency = 1
     title.Font = Enum.Font.GothamBold
-    title.TextColor3 = Color3.fromRGB(200,255,120)
+    title.TextColor3 = Color3.fromRGB(200, 255, 120)
     title.TextSize = 23
     title.Parent = frame
 
     -- Destino
     local coordsLabel = Instance.new("TextLabel")
     coordsLabel.Text = "Destino (X, Y, Z):"
-    coordsLabel.Position = UDim2.new(0,10,0,38)
-    coordsLabel.Size = UDim2.new(0,100,0,22)
+    coordsLabel.Position = UDim2.new(0, 10, 0, 38)
+    coordsLabel.Size = UDim2.new(0, 100, 0, 22)
     coordsLabel.BackgroundTransparency = 1
-    coordsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    coordsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     coordsLabel.Font = Enum.Font.Gotham
     coordsLabel.TextSize = 14
     coordsLabel.Parent = frame
@@ -61,23 +62,23 @@ local function createTeleportGUI()
     local xBox = Instance.new("TextBox")
     xBox.PlaceholderText = tostring(teleportDestination.X)
     xBox.Text = tostring(teleportDestination.X)
-    xBox.Size = UDim2.new(0,60,0,20)
-    xBox.Position = UDim2.new(0,110,0,38)
-    xBox.BackgroundColor3 = Color3.fromRGB(50,50,60)
-    xBox.TextColor3 = Color3.new(1,1,1)
+    xBox.Size = UDim2.new(0, 60, 0, 20)
+    xBox.Position = UDim2.new(0, 110, 0, 38)
+    xBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    xBox.TextColor3 = Color3.new(1, 1, 1)
     xBox.Font = Enum.Font.Gotham
     xBox.TextSize = 13
     xBox.Parent = frame
 
     local yBox = xBox:Clone()
-    yBox.Position = UDim2.new(0,175,0,38)
+    yBox.Position = UDim2.new(0, 175, 0, 38)
     yBox.Text = tostring(teleportDestination.Y)
     yBox.PlaceholderText = tostring(teleportDestination.Y)
     yBox.Parent = frame
 
     local zBox = xBox:Clone()
-    zBox.Position = UDim2.new(0,110,0,62)
-    zBox.Size = UDim2.new(0,125,0,20)
+    zBox.Position = UDim2.new(0, 110, 0, 62)
+    zBox.Size = UDim2.new(0, 125, 0, 20)
     zBox.Text = tostring(teleportDestination.Z)
     zBox.PlaceholderText = tostring(teleportDestination.Z)
     zBox.Parent = frame
@@ -85,10 +86,10 @@ local function createTeleportGUI()
     -- Botão Teleporte
     local teleportBtn = Instance.new("TextButton")
     teleportBtn.Text = "Teleportar (F)"
-    teleportBtn.Size = UDim2.new(0.7,0,0,32)
-    teleportBtn.Position = UDim2.new(0.15,0,0,95)
-    teleportBtn.BackgroundColor3 = Color3.fromRGB(90,190,120)
-    teleportBtn.TextColor3 = Color3.fromRGB(0,0,0)
+    teleportBtn.Size = UDim2.new(0.7, 0, 0, 32)
+    teleportBtn.Position = UDim2.new(0.15, 0, 0, 95)
+    teleportBtn.BackgroundColor3 = Color3.fromRGB(90, 190, 120)
+    teleportBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
     teleportBtn.Font = Enum.Font.GothamBold
     teleportBtn.TextSize = 18
     teleportBtn.Parent = frame
@@ -96,10 +97,10 @@ local function createTeleportGUI()
     -- Botão Noclip
     local noclipBtn = Instance.new("TextButton")
     noclipBtn.Text = "Noclip: DESLIGADO (G)"
-    noclipBtn.Size = UDim2.new(0.7,0,0,26)
-    noclipBtn.Position = UDim2.new(0.15,0,0,130)
-    noclipBtn.BackgroundColor3 = Color3.fromRGB(180,80,80)
-    noclipBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    noclipBtn.Size = UDim2.new(0.7, 0, 0, 26)
+    noclipBtn.Position = UDim2.new(0.15, 0, 0, 130)
+    noclipBtn.BackgroundColor3 = Color3.fromRGB(180, 80, 80)
+    noclipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     noclipBtn.Font = Enum.Font.GothamBold
     noclipBtn.TextSize = 14
     noclipBtn.Parent = frame
@@ -109,7 +110,7 @@ local function createTeleportGUI()
         local x = tonumber(xBox.Text) or teleportDestination.X
         local y = tonumber(yBox.Text) or teleportDestination.Y
         local z = tonumber(zBox.Text) or teleportDestination.Z
-        teleportDestination = Vector3.new(x,y,z)
+        teleportDestination = Vector3.new(x, y, z)
     end
     xBox.FocusLost:Connect(updateDestination)
     yBox.FocusLost:Connect(updateDestination)
@@ -122,8 +123,8 @@ local function createTeleportGUI()
     end)
     noclipBtn.MouseButton1Click:Connect(function()
         isNoclipActive = not isNoclipActive
-        noclipBtn.Text = "Noclip: "..(isNoclipActive and "LIGADO" or "DESLIGADO").." (G)"
-        noclipBtn.BackgroundColor3 = isNoclipActive and Color3.fromRGB(100,210,100) or Color3.fromRGB(180,80,80)
+        noclipBtn.Text = "Noclip: " .. (isNoclipActive and "LIGADO" or "DESLIGADO") .. " (G)"
+        noclipBtn.BackgroundColor3 = isNoclipActive and Color3.fromRGB(100, 210, 100) or Color3.fromRGB(180, 80, 80)
     end)
 end
 
@@ -143,7 +144,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Teleporte Seguro
+-- Teleporte Seguro com Anti-Cheat
 local function safeTeleport(destination)
     if isTeleporting or not localPlayer.Character then return end
     isTeleporting = true
@@ -158,19 +159,28 @@ local function safeTeleport(destination)
     isNoclipActive = true
     setNoclip(true)
 
-    local steps = math.random(7,13)
-    for i=1,steps do
-        local t = i / steps
-        local offset = Vector3.new(math.random(-2,2)*0.15, math.random(-2,2)*0.1, math.random(-2,2)*0.15)
-        local nextPos = originalPos:Lerp(destination, t) + offset
-        root.CFrame = CFrame.new(nextPos,destination)
-        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-        task.wait(math.random(30,60)/1000)
-    end
+    -- Simula movimento natural com TweenService
+    local tweenInfo = TweenInfo.new(
+        math.random(1, 2), -- Duração aleatória para parecer natural
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.InOut,
+        0,
+        false,
+        math.random(50, 150) / 1000 -- Pequeno delay
+    )
 
+    local goal = {CFrame = CFrame.new(destination)}
+    local tween = TweenService:Create(root, tweenInfo, goal)
+
+    -- Simula estados do humanoid para evitar detecção
+    humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    tween:Play()
+    tween.Completed:Wait()
+
+    -- Pequeno ajuste final para garantir a posição exata
     root.CFrame = CFrame.new(destination)
     humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    task.wait(0.1)
+    task.wait(0.2)
 
     if not prevNoclip then
         isNoclipActive = false
@@ -183,8 +193,10 @@ end
 -- Função global
 function _G.TeleportPro_TryTeleport()
     if isTeleporting then return end
-    task.wait(math.random(8,22)/100)
-    safeTeleport(teleportDestination)
+    task.spawn(function()
+        task.wait(math.random(50, 200) / 1000) -- Delay aleatório para evitar detecção
+        safeTeleport(teleportDestination)
+    end)
 end
 
 -- Hotkeys
@@ -194,14 +206,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         _G.TeleportPro_TryTeleport()
     elseif input.KeyCode == noclipKey then
         isNoclipActive = not isNoclipActive
+        local noclipBtn = localPlayer.PlayerGui:FindFirstChild("TeleportPanel") and
+                          localPlayer.PlayerGui.TeleportPanel.Frame:FindFirstChild("TextButton")
+        if noclipBtn then
+            noclipBtn.Text = "Noclip: " .. (isNoclipActive and "LIGADO" or "DESLIGADO") .. " (G)"
+            noclipBtn.BackgroundColor3 = isNoclipActive and Color3.fromRGB(100, 210, 100) or Color3.fromRGB(180, 80, 80)
+        end
     end
 end)
 
 -- Inicialização
 createTeleportGUI()
 StarterGui:SetCore("SendNotification", {
-    Title = "Teleport Pro";
-    Text = "Script carregado! Use o painel ou F (teleporte) / G (noclip).";
-    Duration = 7;
+    Title = "Teleport Pro",
+    Text = "Script carregado! Use o painel ou F (teleporte) / G (noclip).",
+    Duration = 7
 })
 print("Teleport Pro carregado! Use o painel ou F / G para noclip.")
