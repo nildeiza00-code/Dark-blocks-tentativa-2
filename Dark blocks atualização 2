@@ -19,6 +19,7 @@ Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
 Frame.BorderSizePixel = 2
 Frame.Draggable = true
+Frame.Visible = true  -- Garantindo que o painel apareça
 Frame.Parent = ScreenGui
 
 -- Cria o botão de teleporte
@@ -52,7 +53,7 @@ NoclipButton.Parent = Frame
 -- Variável para controlar o estado do noclip
 local noclipEnabled = false
 
--- Função principal do teleporte
+-- Função principal do teleporte (usando BodyPosition)
 local function teleportar(destino)
     local personagem = game.Players.LocalPlayer.Character
     if not personagem then
