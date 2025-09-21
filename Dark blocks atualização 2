@@ -1,120 +1,105 @@
--- CÓDIGO PARA EXECUTOR - PAINEL FUNCIONAL
+--[[
+Script: Teleporte Curto Seguro com Painel (Roblox)
+Executor: Delta (funciona em Synapse, Arceus X etc.)
+Jogo: Roube um Brainrot
+Créditos: nildeiza00-code (educacional)
+
+IMPORTANTE: Use apenas em jogos próprios/testes. Não use para trapacear!
+--]]
 
 local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local char = player.Character or player.CharacterAdded:Wait()
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
--- Evita criar múltiplas GUIs
-if getgenv().TeleportGUI and getgenv().TeleportGUI.Parent then
-    getgenv().TeleportGUI:Destroy()
+-- Função para gerar posição segura próxima
+local function getSafePosition(dist)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    for i = 1, 10 do
+        local angle = math.random() * math.pi * 2
+        local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
+        local target = root.Position + offset
+        local ray = Ray.new(target + Vector3.new(0, 3, 0), Vector3.new(0, -6, 0))
+        local part, pos = workspace:FindPartOnRay(ray, char)
+        if part and part.CanCollide then
+            return Vector3.new(target.X, pos.Y + 2, target.Z)
+        end
+    end
 end
 
--- Cria a GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TeleportGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = playerGui
-ScreenGui.Enabled = true
-getgenv().TeleportGUI = ScreenGui
+-- Função de teleporte suave
+local function SafeTeleport()
+    char = player.Character or player.CharacterAdded:Wait()
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root or humanoid.Health <= 0 then return end
 
--- Frame principal
+    local safePos = getSafePosition(math.random(8, 14))
+    if not safePos then return end
+
+    -- Tween para suavizar (menos detectável)
+    local tween = TweenService:Create(root, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(safePos)})
+    tween:Play()
+end
+
+-- Criar GUI
+if player.PlayerGui:FindFirstChild("TeleGUI") then
+    player.PlayerGui:FindFirstChild("TeleGUI"):Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleGUI"
+ScreenGui.Parent = player.PlayerGui
+
 local Frame = Instance.new("Frame")
-Frame.Name = "TeleportFrame"
-Frame.Size = UDim2.new(0, 200, 0, 150)
-Frame.Position = UDim2.new(0.5, -100, 0.5, -75)
-Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
-Frame.BorderSizePixel = 2
-Frame.Draggable = true
-Frame.Visible = true
+Frame.Size = UDim2.new(0, 180, 0, 60)
+Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
+Frame.BorderSizePixel = 0
+Frame.AnchorPoint = Vector2.new(0.5,0)
 Frame.Parent = ScreenGui
 
--- Botão de teleporte
-local TeleportButton = Instance.new("TextButton")
-TeleportButton.Name = "TeleportButton"
-TeleportButton.Size = UDim2.new(0, 150, 0, 40)
-TeleportButton.Position = UDim2.new(0.5, -75, 0, 15)
-TeleportButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-TeleportButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
-TeleportButton.BorderSizePixel = 1
-TeleportButton.Text = "Teleportar"
-TeleportButton.TextColor3 = Color3.new(1, 1, 1)
-TeleportButton.Font = Enum.Font.SourceSansBold
-TeleportButton.TextSize = 18
-TeleportButton.Parent = Frame
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(1, -24, 1, -24)
+Button.Position = UDim2.new(0, 12, 0, 12)
+Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
+Button.TextColor3 = Color3.fromRGB(230, 255, 230)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 22
+Button.Text = "TELEPORTAR"
+Button.Parent = Frame
 
--- Botão de noclip
-local NoclipButton = Instance.new("TextButton")
-NoclipButton.Name = "NoclipButton"
-NoclipButton.Size = UDim2.new(0, 150, 0, 40)
-NoclipButton.Position = UDim2.new(0.5, -75, 0, 75)
-NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-NoclipButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
-NoclipButton.BorderSizePixel = 1
-NoclipButton.Text = "Atravessar Parede: OFF"
-NoclipButton.TextColor3 = Color3.new(1, 1, 1)
-NoclipButton.Font = Enum.Font.SourceSansBold
-NoclipButton.TextSize = 18
-NoclipButton.Parent = Frame
+Button.MouseButton1Click:Connect(SafeTeleport)
 
--- Variável de controle do noclip
-local noclipEnabled = false
-
--- Função de teleporte (BodyPosition)
-local function teleportar(destino)
-    local character = player.Character
-    if not character then return end
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
-
-    local bodyPos = Instance.new("BodyPosition")
-    bodyPos.Position = destino
-    bodyPos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyPos.Parent = hrp
-
-    task.wait(0.1)
-    bodyPos:Destroy()
-
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = true
-        end
-    end
-end
-
--- Função de noclip
-local function toggleNoclip()
-    noclipEnabled = not noclipEnabled
-    local character = player.Character
-    if not character then return end
-
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not noclipEnabled and true or false
-        end
-    end
-
-    if noclipEnabled then
-        NoclipButton.Text = "Atravessar Parede: ON"
-        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.5, 0.2)
-    else
-        NoclipButton.Text = "Atravessar Parede: OFF"
-        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-    end
-end
-
--- Eventos de clique
-TeleportButton.MouseButton1Click:Connect(function()
-    local mouse = player:GetMouse()
-    local destino = mouse.Hit.p
-    if destino then
-        teleportar(destino)
+-- Hotkey T
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        SafeTeleport()
     end
 end)
 
-NoclipButton.MouseButton1Click:Connect(toggleNoclip)
+-- Arrastar painel
+local dragging, dragInput, dragStart, startPos
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+end)
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- FIM DO SCRIPT
