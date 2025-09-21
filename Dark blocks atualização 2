@@ -1,59 +1,111 @@
--- Script adaptado: GUI visível + teleporte suave com 10 studs/frame via mouse
+-- CÓDIGO PARA SER USADO NO EXECUTOR
 
-local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
--- Remove GUI se já existir, pra evitar duplicações
-if playerGui:FindFirstChild("TeleportGUI") then
-    playerGui.TeleportGUI:Destroy()
+-- Verifica se a GUI já existe para evitar criar múltiplas
+if not pcall(function() return getgenv().TeleportGUI end) then
+    getgenv().TeleportGUI = Instance.new("ScreenGui")
+    getgenv().TeleportGUI.Name = "TeleportGUI"
+    getgenv().TeleportGUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Cria a ScreenGui
-local gui = Instance.new("ScreenGui")
-gui.Name = "TeleportGUI"
-gui.ResetOnSpawn = false
-gui.Parent = playerGui
+local ScreenGui = getgenv().TeleportGUI
+ScreenGui.ResetOnSpawn = false
 
--- Cria o botão
-local botao = Instance.new("TextButton")
-botao.Size = UDim2.new(0, 200, 0, 50)
-botao.Position = UDim2.new(0.5, -100, 0.8, 0) -- embaixo da tela, centralizado
-botao.Text = "Teleportar"
-botao.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-botao.TextColor3 = Color3.fromRGB(255, 255, 255)
-botao.Font = Enum.Font.SourceSansBold
-botao.TextSize = 22
-botao.Parent = gui
+-- Cria o Frame principal do painel
+local Frame = Instance.new("Frame")
+Frame.Name = "TeleportFrame"
+Frame.Size = UDim2.new(0, 200, 0, 150) -- Aumentei a altura para caber outro botão
+Frame.Position = UDim2.new(0.5, -100, 0.5, -75)
+Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
+Frame.BorderSizePixel = 2
+Frame.Draggable = true
+Frame.Parent = ScreenGui
 
--- Função de teleporte suave, com sua lógica de 10 studs/frame
+-- Cria o botão de teleporte
+local TeleportButton = Instance.new("TextButton")
+TeleportButton.Name = "TeleportButton"
+TeleportButton.Size = UDim2.new(0, 150, 0, 40)
+TeleportButton.Position = UDim2.new(0.5, -75, 0, 15)
+TeleportButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+TeleportButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
+TeleportButton.BorderSizePixel = 1
+TeleportButton.Text = "Teleportar"
+TeleportButton.TextColor3 = Color3.new(1, 1, 1)
+TeleportButton.Font = Enum.Font.SourceSansBold
+TeleportButton.TextSize = 18
+TeleportButton.Parent = Frame
+
+-- Cria o botão de atravessar parede (Noclip)
+local NoclipButton = Instance.new("TextButton")
+NoclipButton.Name = "NoclipButton"
+NoclipButton.Size = UDim2.new(0, 150, 0, 40)
+NoclipButton.Position = UDim2.new(0.5, -75, 0, 75)
+NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+NoclipButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
+NoclipButton.BorderSizePixel = 1
+NoclipButton.Text = "Atravessar Parede: OFF"
+NoclipButton.TextColor3 = Color3.new(1, 1, 1)
+NoclipButton.Font = Enum.Font.SourceSansBold
+NoclipButton.TextSize = 18
+NoclipButton.Parent = Frame
+
+-- Variável para controlar o estado do noclip
+local noclipEnabled = false
+
+-- Função principal do teleporte
 local function teleportar(destino)
-    local personagem = player.Character
-    if not personagem or not personagem.PrimaryPart then
-        warn("Personagem ou PrimaryPart não encontrado.")
+    local personagem = game.Players.LocalPlayer.Character
+    if not personagem then
+        warn("Personagem não encontrado.")
         return
     end
 
-    local origem = personagem.PrimaryPart.Position
+    local origem = personagem.PrimaryPart.CFrame.Position
     local distancia = (destino - origem).Magnitude
-    local velocidade = 10
+    
+    local velocidade = 10 
     local passos = math.ceil(distancia / velocidade)
 
     for i = 1, passos do
         local alpha = i / passos
-        local novaPos = origem:Lerp(destino, alpha)
-        personagem:SetPrimaryPartCFrame(CFrame.new(novaPos))
-        task.wait()
+        local novaPosicao = origem:Lerp(destino, alpha)
+        
+        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
+        
+        task.wait() 
     end
 end
 
--- Quando clicar no botão
-botao.MouseButton1Click:Connect(function()
-    local mouse = player:GetMouse()
-    -- Espera um momento até clicar no jogo para definir destino, ou usar mouse.Hit
-    local destino = mouse.Hit and mouse.Hit.p
+-- Função para ativar/desativar o noclip
+local function toggleNoclip()
+    noclipEnabled = not noclipEnabled
+    local personagem = game.Players.LocalPlayer.Character
+    if not personagem then return end
+
+    local humanoidRootPart = personagem:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+
+    if noclipEnabled then
+        -- Desativa a colisão
+        humanoidRootPart.CanCollide = false
+        NoclipButton.Text = "Atravessar Parede: ON"
+        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.5, 0.2) -- Cor verde para indicar que está ativo
+    else
+        -- Reativa a colisão
+        humanoidRootPart.CanCollide = true
+        NoclipButton.Text = "Atravessar Parede: OFF"
+        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2) -- Cor original
+    end
+end
+
+-- Eventos de clique
+TeleportButton.MouseButton1Click:Connect(function()
+    local mouse = game.Players.LocalPlayer:GetMouse()
+    local destino = mouse.Hit.p
+    
     if destino then
         teleportar(destino)
-    else
-        warn("Não conseguiu determinar posição do mouse.")
     end
 end)
+
+NoclipButton.MouseButton1Click:Connect(toggleNoclip)
