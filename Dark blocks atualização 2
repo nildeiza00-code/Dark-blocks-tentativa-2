@@ -8,12 +8,12 @@ local pathLength = 12
 local stepDelay = 0.07
 
 -- Criar grupo de colisão personalizado se não existir
-if not pcall(function() PhysicsService:GetCollisionGroupName("TeleportBypass") end) then
+if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
     PhysicsService:CreateCollisionGroup("TeleportBypass")
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
 end
 
--- Função: ligar/desligar colisão de forma avançada
+-- Função: ligar/desligar colisão
 local function disableCollision(character, state)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
@@ -34,8 +34,8 @@ local function disableCollision(character, state)
     end
 end
 
--- Função: teleporte seguro com bypass de anti-cheat
-function SmoothTeleport()
+-- Função: teleporte seguro
+local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
@@ -43,24 +43,24 @@ function SmoothTeleport()
     task.wait(math.random(10, 30)/100)
     disableCollision(char, true)
 
-    local randomAngle = math.rad(math.random(-5, 5))
-    local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
-    local steps = math.random(8, 12)
-    
-    for i = 1, steps do
+    local randomAngle = math.rad(math.random(-5,5))
+    local dir = (root.CFrame * CFrame.Angles(0, randomAngle,0)).LookVector
+    local steps = math.random(8,12)
+
+    for i=1, steps do
         if not root or not root.Parent then break end
-        local currentStep = dir * (pathLength / steps) * (0.9 + math.random() * 0.2)
+        local currentStep = dir * (pathLength / steps) * (0.9 + math.random()*0.2)
         local newPos = root.Position + currentStep
         root.CFrame = CFrame.new(newPos) * CFrame.Angles(
-            math.rad(math.random(-2, 2)),
-            math.rad(math.random(-3, 3)),
-            math.rad(math.random(-2, 2))
+            math.rad(math.random(-2,2)),
+            math.rad(math.random(-3,3)),
+            math.rad(math.random(-2,2))
         )
-        task.wait(stepDelay * (0.8 + math.random() * 0.4))
+        task.wait(stepDelay * (0.8 + math.random()*0.4))
     end
 
     task.wait(0.1)
-    disableCollision(char, false)
+    disableCollision(char,false)
     if root and root.Parent then
         root.Velocity = Vector3.new(0,0,0)
         root.AssemblyLinearVelocity = Vector3.new(0,0,0)
@@ -68,7 +68,7 @@ function SmoothTeleport()
     end
 end
 
--- ================= GUI FIXO COM BOTÃO =================
+-- Função para remover GUI antiga
 local function safeRemoveGUI()
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
@@ -79,70 +79,55 @@ local function safeRemoveGUI()
     end
 end
 
+-- Criar GUI com botão funcional
 local function createGUI()
     safeRemoveGUI()
-    
     local playerGui = player:WaitForChild("PlayerGui")
-    
+
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
     ScreenGui.Parent = playerGui
-    ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-    -- Frame fixo no canto inferior esquerdo
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 160, 0, 50)
-    Frame.Position = UDim2.new(0, 20, 1, -70)
-    Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
+    Frame.Size = UDim2.new(0,180,0,60)
+    Frame.Position = UDim2.new(0,20,0.5,-30) -- canto esquerdo central
+    Frame.BackgroundColor3 = Color3.fromRGB(33,33,40)
     Frame.BorderSizePixel = 0
-    Frame.AnchorPoint = Vector2.new(0, 0)
+    Frame.AnchorPoint = Vector2.new(0,0.5)
     Frame.Parent = ScreenGui
 
-    -- Botão principal
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1, -10, 1, -10)
-    Button.Position = UDim2.new(0, 5, 0, 5)
-    Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
-    Button.TextColor3 = Color3.fromRGB(230, 255, 230)
+    Button.Size = UDim2.new(1,-16,1,-16)
+    Button.Position = UDim2.new(0,8,0,8)
+    Button.BackgroundColor3 = Color3.fromRGB(80,120,80)
+    Button.TextColor3 = Color3.fromRGB(230,255,230)
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 22
     Button.Text = "TELEPORTAR"
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- Feedback visual simples ao clicar
+    -- Botão agora chama SmoothTeleport corretamente
     Button.MouseButton1Click:Connect(function()
-        local originalColor = Button.BackgroundColor3
-        Button.BackgroundColor3 = Color3.fromRGB(120, 180, 120)
-        task.wait(0.15)
-        Button.BackgroundColor3 = originalColor
         SmoothTeleport()
     end)
 end
 
--- Inicializa GUI
-if player.Character then
-    createGUI()
-else
-    player.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        createGUI()
-    end)
-end
-
--- Recriar GUI se PlayerGui for reiniciado
-player.PlayerGui.ChildRemoved:Connect(function(child)
-    if child.Name == "TeleGUI" then
-        task.wait(0.3)
-        createGUI()
-    end
-end)
-
--- Hotkey T
-UIS.InputBegan:Connect(function(input, processed)
+-- Hotkey T para teleporte
+UIS.InputBegan:Connect(function(input,processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
         SmoothTeleport()
     end
 end)
+
+-- Inicializar GUI
+if player.Character then
+    createGUI()
+else
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        createGUI()
+    end)
+end
