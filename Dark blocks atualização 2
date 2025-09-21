@@ -1,21 +1,49 @@
--- Espera até o Player estar pronto
+-- SCRIPT COMPLETO FUNCIONAL PARA EXECUTOR
+
 local player = game.Players.LocalPlayer
 if not player then return end
-
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Verifica se o GUI já existe
+-- =======================
+-- FUNÇÃO DE TELEPORTE
+-- =======================
+local function teleportar(destino)
+    local personagem = player.Character
+    if not personagem then
+        warn("Personagem não encontrado.")
+        return
+    end
+
+    local origem = personagem.PrimaryPart.CFrame.Position
+    local distancia = (destino - origem).Magnitude
+    
+    local velocidade = 10 
+    local passos = math.ceil(distancia / velocidade)
+
+    for i = 1, passos do
+        local alpha = i / passos
+        local novaPosicao = origem:Lerp(destino, alpha)
+        
+        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
+        
+        task.wait() 
+    end
+end
+
+-- =======================
+-- GUI
+-- =======================
+-- Remove GUI antiga caso exista
 if playerGui:FindFirstChild("TeleportGUI") then
     playerGui.TeleportGUI:Destroy()
 end
 
--- Cria a ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TeleportGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = playerGui
 
--- Cria o Frame principal
+-- Frame principal
 local Frame = Instance.new("Frame")
 Frame.Name = "TeleportFrame"
 Frame.Size = UDim2.new(0, 200, 0, 150)
@@ -54,10 +82,11 @@ NoclipButton.Font = Enum.Font.SourceSansBold
 NoclipButton.TextSize = 18
 NoclipButton.Parent = Frame
 
--- Variável de estado do noclip
+-- =======================
+-- NOCILP
+-- =======================
 local noclipEnabled = false
 
--- Função de Noclip
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
     local character = player.Character
@@ -78,12 +107,15 @@ local function toggleNoclip()
     end
 end
 
--- Conecta eventos
-NoclipButton.MouseButton1Click:Connect(toggleNoclip)
+-- =======================
+-- EVENTOS DOS BOTÕES
+-- =======================
 TeleportButton.MouseButton1Click:Connect(function()
     local mouse = player:GetMouse()
     local destino = mouse.Hit.p
     if destino then
-        teleportar(destino) -- NUNCA alterado
+        teleportar(destino)
     end
 end)
+
+NoclipButton.MouseButton1Click:Connect(toggleNoclip)
