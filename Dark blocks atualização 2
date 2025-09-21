@@ -1,226 +1,175 @@
--- Teleporte avançado com bypass de anti-cheat e colisão
+-- Teleporte avançado com GUI
+-- Funciona em executores: Delta, Synapse, Arceus X
+
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
--- Configurações ajustáveis
-local pathLength = 12
-local stepCount = 14
-local stepDelay = 0.05
-local teleportCooldown = 1.5
+-- Configurações do teleporte
+local pathLength = 12 -- distância total
+local stepCount = 10  -- "quantidade de passos" (ajusta a velocidade)
+local stepDelay = 0.07 -- tempo de cada passo
 
--- Estado do teleporte
-local isTeleporting = false
-local lastTeleportTime = 0
-
--- Função para verificar se pode teleportar
-local function canTeleport()
-    return (tick() - lastTeleportTime) > teleportCooldown and not isTeleporting
-end
-
--- Função avançada para ignorar colisões
-local function manageCollisions(char, disable)
-    if not char then return end
-    
-    local PhysicsService = game:GetService("PhysicsService")
-    
-    -- Cria grupo de colisão personalizado se não existir
-    if not PhysicsService:GetCollisionGroupName("NoCollideGroup") then
-        PhysicsService:CreateCollisionGroup("NoCollideGroup")
-        PhysicsService:CollisionGroupSetCollidable("NoCollideGroup", "Default", false)
-    end
-    
-    for _, part in pairs(char:GetDescendants()) do
+-- Função: ligar/desligar colisão
+local function disableCollision(character, state)
+    for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
-            if disable then
-                -- Modo sem colisão
-                part.CanCollide = false
-                part.CanTouch = false
-                part.CanQuery = false
-                PhysicsService:SetPartCollisionGroup(part, "NoCollideGroup")
-                
-                -- Zera velocidades para evitar detecção
-                part.Velocity = Vector3.new()
-                part.RotVelocity = Vector3.new()
-            else
-                -- Restaura colisão normal
-                part.CanCollide = true
-                part.CanTouch = true
-                part.CanQuery = true
-                PhysicsService:SetPartCollisionGroup(part, "Default")
-            end
+            part.CanCollide = not state
         end
     end
 end
 
--- Função de teleporte otimizada
-local function AdvancedTeleport()
-    if not canTeleport() then return end
-    
-    isTeleporting = true
-    lastTeleportTime = tick()
-    
-    local char = player.Character
-    if not char then
-        isTeleporting = false
-        return
-    end
-    
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local humanoid = char:FindFirstChild("Humanoid")
-    
-    if not root or not humanoid then 
-        isTeleporting = false
-        return 
-    end
+-- Função: teleporte suave
+local function SmoothTeleport()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
 
-    -- Salva estado original para restauração
-    local originalPosition = root.Position
-    
-    -- Prepara para ignorar colisões
-    manageCollisions(char, true)
-    
-    -- Detecta se há paredes no caminho
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {char}
-    raycastParams.IgnoreWater = true
-    
-    local direction = root.CFrame.LookVector
-    local targetPosition = root.Position + (direction * pathLength)
-    
-    -- Verifica colisão com parede
-    local rayResult = workspace:Raycast(root.Position, direction * (pathLength + 2), raycastParams)
-    
-    if rayResult then
-        -- Se há parede, calcula posição logo após ela
-        local normal = rayResult.Normal
-        local surfacePosition = rayResult.Position
-        targetPosition = surfacePosition + (normal * 1.5)
-    end
+    -- Desativa colisão
+    disableCollision(char, false)
 
-    -- Movimento em etapas com variação aleatória
-    local totalDistance = (targetPosition - root.Position).Magnitude
-    local stepDistance = totalDistance / stepCount
-    
-    for i = 1, stepCount do
-        if not root or not root.Parent then break end
-        
-        -- Interpolação com easing natural
-        local progress = i / stepCount
-        local easeValue = 0.5 - math.cos(progress * math.pi) / 2  -- Easing suave
-        
-        local currentStep = direction * (stepDistance * easeValue)
-        local newPosition = root.Position + currentStep
-        
-        -- Aplica movimento com pequena variação aleatória
-        root.CFrame = CFrame.new(newPosition) * CFrame.Angles(
-            math.rad(math.random(-1, 1)),
-            math.rad(math.random(-2, 2)),
-            math.rad(math.random(-1, 1))
-        )
-        
-        -- Delay variável entre passos
-        task.wait(stepDelay * (0.8 + math.random() * 0.4))
-    end
+    -- Calcula posição final
+    local dir = root.CFrame.LookVector
+    local targetPos = root.Position + dir * pathLength
 
-    -- Pequena pausa antes de restaurar colisões
-    task.wait(0.1)
-    
-    -- Restaura colisões
-    manageCollisions(char, false)
-    
-    -- Garante que o personagem está estável
-    if root and root.Parent then
-        root.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    end
-    
-    isTeleporting = false
+    -- Cria movimento Tween
+    local tweenInfo = TweenInfo.new(
+        stepCount * stepDelay, -- duração total
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.Out
+    )
+    local tweenGoal = {CFrame = CFrame.new(targetPos)}
+    local tween = TweenService:Create(root, tweenInfo, tweenGoal)
+    tween:Play()
+    tween.Completed:Wait()
+
+    -- Reativa colisão
+    disableCollision(char, true)
 end
 
--- Interface do usuário melhorada
-if player.PlayerGui:FindFirstChild("TeleGUI") then
-    player.PlayerGui:FindFirstChild("TeleGUI"):Destroy()
+-- CORREÇÃO: Remover GUI existente de forma segura
+local function safeRemoveGUI()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local existingGUI = playerGui:FindFirstChild("TeleGUI")
+        if existingGUI then
+            existingGUI:Destroy()
+        end
+    end
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TeleGUI"
-ScreenGui.Parent = player.PlayerGui
-ScreenGui.Enabled = true
+-- CORREÇÃO: Criar a GUI de forma segura
+local function createGUI()
+    safeRemoveGUI()
+    
+    local playerGui = player:WaitForChild("PlayerGui")
+    
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "TeleGUI"
+    ScreenGui.Parent = playerGui
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 170, 0, 55)
-Frame.Position = UDim2.new(0.5, -85, 0.82, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-Frame.BackgroundTransparency = 0.3
-Frame.BorderSizePixel = 1
-Frame.BorderColor3 = Color3.fromRGB(70, 70, 80)
-Frame.AnchorPoint = Vector2.new(0.5, 0)
-Frame.Parent = ScreenGui
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 180, 0, 60)
+    Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
+    Frame.BorderSizePixel = 0
+    Frame.AnchorPoint = Vector2.new(0.5, 0)
+    Frame.Parent = ScreenGui
+    Frame.Active = true
+    Frame.Draggable = false
 
-local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(1, -20, 1, -20)
-Button.Position = UDim2.new(0, 10, 0, 10)
-Button.BackgroundColor3 = Color3.fromRGB(75, 110, 75)
-Button.BackgroundTransparency = 0.2
-Button.TextColor3 = Color3.fromRGB(225, 255, 225)
-Button.Font = Enum.Font.GothamBold
-Button.TextSize = 18
-Button.Text = "ATRAVESSAR"
-Button.Parent = Frame
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, -24, 1, -24)
+    Button.Position = UDim2.new(0, 12, 0, 12)
+    Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
+    Button.TextColor3 = Color3.fromRGB(230, 255, 230)
+    Button.Font = Enum.Font.GothamBold
+    Button.TextSize = 22
+    Button.Text = "TELEPORTAR"
+    Button.Parent = Frame
+    Button.AutoButtonColor = true -- CORREÇÃO: Garantir que é clicável
 
-Button.MouseButton1Click:Connect(AdvancedTeleport)
-
--- Hotkey T com cooldown
-UIS.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.T and canTeleport() then
-        AdvancedTeleport()
-    end
-end)
-
--- Sistema para ocultar/mostrar a GUI (Shift + H)
-UIS.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.H and UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
-        ScreenGui.Enabled = not ScreenGui.Enabled
-    end
-end)
-
--- Sistema de arrastar painel
-local dragging, dragInput, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+    -- CORREÇÃO: Conectar o clique do botão DE FORMA SEGURA
+    local connection
+    connection = Button.MouseButton1Click:Connect(function()
+        -- Desconectar temporariamente para evitar múltiplos cliques
+        connection:Disconnect()
+        SmoothTeleport()
+        -- Reconectar após execução
+        task.wait(0.5)
+        connection = Button.MouseButton1Click:Connect(function()
+            connection:Disconnect()
+            SmoothTeleport()
+            task.wait(0.5)
+            connection = Button.MouseButton1Click:Connect(function() end)
         end)
+    end)
+
+    -- CORREÇÃO: Sistema de arrastar melhorado
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    local function updateInput(input)
+        dragInput = input
+    end
+
+    Frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = Frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    Frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateInput(input)
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            Frame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, 
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    return ScreenGui
+end
+
+-- CORREÇÃO: Hotkey T com verificação de segurança
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        SmoothTeleport()
     end
 end)
 
-Frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
-end)
+-- CORREÇÃO: Criar a GUI quando o player estiver pronto
+if player.Character then
+    createGUI()
+else
+    player.CharacterAdded:Connect(function()
+        task.wait(1) -- Esperar o personagem carregar completamente
+        createGUI()
+    end)
+end
 
-UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
--- Indicador de cooldown
-RunService.Heartbeat:Connect(function()
-    if tick() - lastTeleportTime < teleportCooldown then
-        local remaining = teleportCooldown - (tick() - lastTeleportTime)
-        Button.Text = string.format("Cooldown: %.1f", remaining)
-        Button.BackgroundColor3 = Color3.fromRGB(110, 75, 75)
-    else
-        Button.Text = "ATRAVESSAR"
-        Button.BackgroundColor3 = Color3.fromRGB(75, 110, 75)
+-- CORREÇÃO: Recriar GUI se o PlayerGui for resetado
+player.PlayerGui.ChildAdded:Connect(function(child)
+    if child:IsA("ScreenGui") and child.Name ~= "TeleGUI" then
+        task.wait(1)
+        createGUI()
     end
 end)
