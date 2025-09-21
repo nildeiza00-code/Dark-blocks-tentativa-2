@@ -1,7 +1,8 @@
-    --[[
+--[[
     Script Profissional de Teleporte + Noclip para Roblox
     Autor: nildeiza00-code + Melhorias para Anti-Cheat e Spawn
     Compatível com Delta
+    Versão Melhorada: Correção de Noclip e Otimização Anti-Detecção
 ]]
 
 local Players = game:GetService("Players")
@@ -17,19 +18,18 @@ local Camera = workspace.CurrentCamera
 local teleportKey = Enum.KeyCode.F
 local noclipKey = Enum.KeyCode.G
 
-local teleportDestination = Vector3.new(100, 50, 200)  -- Destino padrão, mas pode ser alterado para spawn
+local teleportDestination = Vector3.new(100, 50, 200)
 local isNoclipActive = false
 local isTeleporting = false
 local noclipConnection = nil
 
--- Função para encontrar o Spawn Principal (procura SpawnLocation no Workspace)
+-- Função para encontrar o Spawn Principal
 local function getSpawnPosition()
     local spawns = Workspace:FindFirstChildOfClass("SpawnLocation")
     if spawns then
-        return spawns.Position + Vector3.new(0, 3, 0)  -- Ajuste para cima do spawn
+        return spawns.Position + Vector3.new(0, 3, 0)
     else
-        -- Se não encontrar, usa um fallback (ajuste conforme o jogo)
-        return Vector3.new(0, 10, 0)  -- Posição padrão se não houver spawn
+        return Vector3.new(0, 10, 0)
     end
 end
 
@@ -45,7 +45,7 @@ local function createTeleportGUI()
     screenGui.Parent = localPlayer.PlayerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 240, 0, 180)  -- Aumentado para caber novo botão
+    frame.Size = UDim2.new(0, 240, 0, 180)
     frame.Position = UDim2.new(0.5, -120, 0.1, 0)
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     frame.BorderSizePixel = 0
@@ -156,41 +156,39 @@ local function createTeleportGUI()
     end)
 end
 
--- Noclip Melhorado (usa velocity para simular movimento sem colisão detectável)
+-- Noclip Melhorado (Método mais discreto)
 local function toggleNoclip(state)
     if not localPlayer.Character then return end
-    local root = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if not root or not humanoid then return end
-
+    
     if state then
         if noclipConnection then noclipConnection:Disconnect() end
-        noclipConnection = RunService.Heartbeat:Connect(function()
-            for _, part in pairs(localPlayer.Character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.Velocity = Vector3.new(1, 0, 1) * -2e4  -- Força anti-gravidade e movimento
+        
+        -- Método mais seguro: tornar partes não colidíveis
+        noclipConnection = RunService.Stepped:Connect(function()
+            if localPlayer.Character then
+                for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
                 end
             end
-            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            humanoid.PlatformStand = true
         end)
     else
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
+            
+            -- Restaurar colisão quando desativado
+            if localPlayer.Character then
+                for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
         end
-        humanoid.PlatformStand = false
-        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 end
-
-RunService.Stepped:Connect(function()
-    if isNoclipActive then
-        toggleNoclip(true)
-    else
-        toggleNoclip(false)
-    end
-end)
 
 -- Teleporte Seguro com Anti-Cheat
 local function safeTeleport(destination)
@@ -202,33 +200,18 @@ local function safeTeleport(destination)
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not root or not humanoid then isTeleporting = false return end
 
-    local originalPos = root.Position
     local prevNoclip = isNoclipActive
     isNoclipActive = true
     toggleNoclip(true)
 
-    -- Simula movimento natural com TweenService
-    local tweenInfo = TweenInfo.new(
-        math.random(1, 3), -- Duração aleatória mais longa para naturalidade
-        Enum.EasingStyle.Quad,
-        Enum.EasingDirection.Out,
-        0,
-        false,
-        math.random(100, 300) / 1000 -- Delay aleatório maior
-    )
-
-    local goal = {CFrame = CFrame.new(destination)}
-    local tween = TweenService:Create(root, tweenInfo, goal)
-
-    -- Simula estados do humanoid para evitar detecção
-    humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-    tween:Play()
-    tween.Completed:Wait()
-
-    -- Pequeno ajuste final para garantir a posição exata
+    -- Pequeno delay aleatório antes do teleporte
+    task.wait(math.random(5, 15) / 100)
+    
+    -- Teleporte direto sem tween (mais discreto)
     root.CFrame = CFrame.new(destination)
-    humanoid:ChangeState(Enum.HumanoidStateType.Landed)
-    task.wait(0.3)
+    
+    -- Pequeno delay após o teleporte
+    task.wait(math.random(5, 15) / 100)
 
     if not prevNoclip then
         isNoclipActive = false
@@ -238,14 +221,11 @@ local function safeTeleport(destination)
     isTeleporting = false
 end
 
--- Função global para teleporte (aceita destino personalizado)
+-- Função global para teleporte
 function _G.TeleportPro_TryTeleport(dest)
     if isTeleporting then return end
     local target = dest or teleportDestination
-    task.spawn(function()
-        task.wait(math.random(100, 300) / 1000) -- Delay aleatório maior para evitar detecção
-        safeTeleport(target)
-    end)
+    task.spawn(safeTeleport, target)
 end
 
 -- Hotkeys
@@ -255,22 +235,28 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         _G.TeleportPro_TryTeleport(teleportDestination)
     elseif input.KeyCode == noclipKey then
         isNoclipActive = not isNoclipActive
+        toggleNoclip(isNoclipActive)
+        
         local panel = localPlayer.PlayerGui:FindFirstChild("TeleportPanel")
         if panel then
-            local noclipBtn = panel:FindFirstChild("Frame"):FindFirstChildWhichIsA("TextButton", true)  -- Encontra o botão de noclip
-            if noclipBtn and noclipBtn.Text:find("Noclip") then
-                noclipBtn.Text = "Noclip: " .. (isNoclipActive and "LIGADO" or "DESLIGADO") .. " (G)"
-                noclipBtn.BackgroundColor3 = isNoclipActive and Color3.fromRGB(100, 210, 100) or Color3.fromRGB(180, 80, 80)
+            local frame = panel:FindFirstChild("Frame")
+            if frame then
+                local noclipBtn = frame:FindFirstChildWhichIsA("TextButton", true)
+                if noclipBtn and noclipBtn.Text:find("Noclip") then
+                    noclipBtn.Text = "Noclip: " .. (isNoclipActive and "LIGADO" or "DESLIGADO") .. " (G)"
+                    noclipBtn.BackgroundColor3 = isNoclipActive and Color3.fromRGB(100, 210, 100) or Color3.fromRGB(180, 80, 80)
+                end
             end
         end
     end
 end)
 
 -- Inicialização
+task.wait(1) -- Espera o jogador carregar
 createTeleportGUI()
 StarterGui:SetCore("SendNotification", {
     Title = "Teleport Pro",
-    Text = "Script carregado! Use o painel ou F (teleporte) / G (noclip). Novo: Botão para Spawn!",
+    Text = "Script carregado! Use o painel ou F (teleporte) / G (noclip).",
     Duration = 7
 })
 print("Teleport Pro carregado! Use o painel ou F / G para noclip.")
