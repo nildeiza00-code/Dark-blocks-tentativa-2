@@ -1,13 +1,18 @@
 -- Teleporte avançado com bypass de anti-cheat
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local PhysicsService = game:GetService("PhysicsService")
 
 -- Configurações do teleporte
 local pathLength = 12
 local stepCount = 10
 local stepDelay = 0.07
+local teleportCooldown = 1.5
+
+-- Estado do teleporte
+local isTeleporting = false
+local lastTeleportTime = 0
 
 -- Criar grupo de colisão personalizado se não existir
 if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
@@ -15,8 +20,15 @@ if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
 end
 
+-- Função para verificar se pode teleportar
+local function canTeleport()
+    return (tick() - lastTeleportTime) > teleportCooldown and not isTeleporting
+end
+
 -- Função: ligar/desligar colisão de forma avançada
 local function disableCollision(character, state)
+    if not character then return end
+    
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             if state then
@@ -42,9 +54,24 @@ end
 
 -- Função: teleporte seguro com bypass de anti-cheat
 local function SmoothTeleport()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    if not canTeleport() then return end
+    
+    isTeleporting = true
+    lastTeleportTime = tick()
+    
+    local char = player.Character
+    if not char then
+        isTeleporting = false
+        return
+    end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChild("Humanoid")
+    
+    if not root or not humanoid then 
+        isTeleporting = false
+        return 
+    end
 
     -- Pequena pausa aleatória antes de começar
     task.wait(math.random(10, 30) / 100)
@@ -57,7 +84,7 @@ local function SmoothTeleport()
     local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
     local targetPos = root.Position + dir * pathLength
 
-    -- Movimento em etapas curtas (substitui o TweenService)
+    -- Movimento em etapas curtas
     local steps = math.random(8, 12)
     
     for i = 1, steps do
@@ -89,9 +116,11 @@ local function SmoothTeleport()
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
+    
+    isTeleporting = false
 end
 
--- GUI (painel e botão) - Mantida igual
+-- Remover GUI existente de forma segura
 local function safeRemoveGUI()
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
@@ -102,6 +131,7 @@ local function safeRemoveGUI()
     end
 end
 
+-- Criar a GUI de forma segura
 local function createGUI()
     safeRemoveGUI()
     
@@ -111,6 +141,7 @@ local function createGUI()
     ScreenGui.Name = "TeleGUI"
     ScreenGui.Parent = playerGui
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.ResetOnSpawn = false
 
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0, 180, 0, 60)
@@ -133,18 +164,11 @@ local function createGUI()
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- Conexão segura do botão
-    local connection
-    connection = Button.MouseButton1Click:Connect(function()
-        connection:Disconnect()
-        SmoothTeleport()
-        task.wait(0.5)
-        connection = Button.MouseButton1Click:Connect(function()
-            connection:Disconnect()
+    -- Conectar o clique do botão
+    Button.MouseButton1Click:Connect(function()
+        if canTeleport() then
             SmoothTeleport()
-            task.wait(0.5)
-            connection = Button.MouseButton1Click:Connect(function() end)
-        end)
+        end
     end)
 
     -- Sistema de arrastar
@@ -198,19 +222,48 @@ UIS.InputBegan:Connect(function(input, processed)
 end)
 
 -- Inicialização da GUI
-if player.Character then
-    createGUI()
-else
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
+local function initializeGUI()
+    if player.Character then
         createGUI()
-    end)
+    else
+        player.CharacterAdded:Connect(function()
+            task.wait(2) -- Esperar o personagem carregar completamente
+            createGUI()
+        end)
+    end
 end
 
--- Recriar GUI se necessário
-player.PlayerGui.ChildAdded:Connect(function(child)
-    if child:IsA("ScreenGui") and child.Name ~= "TeleGUI" then
+-- Iniciar
+initializeGUI()
+
+-- Recriar GUI se for removida acidentalmente
+player.PlayerGui.ChildRemoved:Connect(function(child)
+    if child.Name == "TeleGUI" then
         task.wait(1)
         createGUI()
+    end
+end)
+
+-- Indicador de cooldown no botão
+RunService.Heartbeat:Connect(function()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local teleGUI = playerGui:FindFirstChild("TeleGUI")
+        if teleGUI then
+            local frame = teleGUI:FindFirstChild("Frame")
+            if frame then
+                local button = frame:FindFirstChild("TextButton")
+                if button then
+                    if not canTeleport() then
+                        local remaining = teleportCooldown - (tick() - lastTeleportTime)
+                        button.Text = string.format("CD: %.1f", remaining)
+                        button.BackgroundColor3 = Color3.fromRGB(120, 80, 80)
+                    else
+                        button.Text = "TELEPORTAR"
+                        button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
+                    end
+                end
+            end
+        end
     end
 end)
