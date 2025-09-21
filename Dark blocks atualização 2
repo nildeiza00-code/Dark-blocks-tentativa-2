@@ -1,6 +1,6 @@
 -- CÓDIGO PARA SER USADO NO EXECUTOR
 
--- Verifica se a GUI já existe para evitar criar múltiplas
+-- Garantindo que a GUI só seja criada uma vez
 if not pcall(function() return getgenv().TeleportGUI end) then
     getgenv().TeleportGUI = Instance.new("ScreenGui")
     getgenv().TeleportGUI.Name = "TeleportGUI"
@@ -9,6 +9,7 @@ end
 
 local ScreenGui = getgenv().TeleportGUI
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = true -- Garante que o GUI esteja ativo
 
 -- Cria o Frame principal do painel
 local Frame = Instance.new("Frame")
@@ -19,7 +20,7 @@ Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
 Frame.BorderSizePixel = 2
 Frame.Draggable = true
-Frame.Visible = true  -- Garantindo que o painel apareça
+Frame.Visible = true -- Força o painel a aparecer
 Frame.Parent = ScreenGui
 
 -- Cria o botão de teleporte
@@ -36,7 +37,7 @@ TeleportButton.Font = Enum.Font.SourceSansBold
 TeleportButton.TextSize = 18
 TeleportButton.Parent = Frame
 
--- Cria o botão de atravessar parede (Noclip)
+-- Cria o botão de noclip
 local NoclipButton = Instance.new("TextButton")
 NoclipButton.Name = "NoclipButton"
 NoclipButton.Size = UDim2.new(0, 150, 0, 40)
@@ -53,7 +54,7 @@ NoclipButton.Parent = Frame
 -- Variável para controlar o estado do noclip
 local noclipEnabled = false
 
--- Função principal do teleporte (usando BodyPosition)
+-- Nova função de teleporte (BodyPosition)
 local function teleportar(destino)
     local personagem = game.Players.LocalPlayer.Character
     if not personagem then
@@ -64,26 +65,24 @@ local function teleportar(destino)
     local humanoideRootPart = personagem:FindFirstChild("HumanoidRootPart")
     if not humanoideRootPart then return end
 
-    -- Desativa a colisão de todas as partes do personagem antes de teleportar
+    -- Desativa colisão
     for _, part in pairs(personagem:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
         end
     end
 
-    -- Cria o objeto BodyPosition para mover o personagem
+    -- Aplica BodyPosition
     local bodyPosition = Instance.new("BodyPosition")
     bodyPosition.Position = destino
     bodyPosition.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bodyPosition.Parent = humanoideRootPart
 
-    -- Espera um tempo muito curto para que a força seja aplicada
+    -- Pequena espera
     task.wait(0.1)
-    
-    -- Remove o BodyPosition
     bodyPosition:Destroy()
 
-    -- Reativa a colisão de todas as partes do personagem
+    -- Reativa colisão
     for _, part in pairs(personagem:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = true
@@ -91,10 +90,9 @@ local function teleportar(destino)
     end
 end
 
--- Função para ativar/desativar o noclip
+-- Função do noclip
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
-    
     local character = game.Players.LocalPlayer.Character
     if not character then return end
 
@@ -117,14 +115,17 @@ local function toggleNoclip()
     end
 end
 
--- Eventos de clique
+-- Conexão dos botões
 TeleportButton.MouseButton1Click:Connect(function()
     local mouse = game.Players.LocalPlayer:GetMouse()
     local destino = mouse.Hit.p
-    
     if destino then
         teleportar(destino)
     end
 end)
 
 NoclipButton.MouseButton1Click:Connect(toggleNoclip)
+
+-- Ativa a GUI automaticamente
+ScreenGui.Enabled = true
+Frame.Visible = true
