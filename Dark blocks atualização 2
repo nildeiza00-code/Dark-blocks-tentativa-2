@@ -2,6 +2,7 @@
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local PhysicsService = game:GetService("PhysicsService")
+local StarterGui = game:GetService("StarterGui")
 
 -- Configurações do teleporte
 local pathLength = 12
@@ -68,18 +69,34 @@ local function SmoothTeleport()
     end
 end
 
--- Função: criar GUI do zero
+-- Função: criar GUI confiável
 local function createGUI()
     -- Remove GUI antiga se existir
     if game:GetService("CoreGui"):FindFirstChild("TeleGUI") then
         game:GetService("CoreGui").TeleGUI:Destroy()
     end
 
+    -- Cria ScreenGui
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = game:GetService("CoreGui") -- garante que apareça no Delta
 
+    -- Tenta colocar no CoreGui (Delta Executor permite)
+    local success, err = pcall(function()
+        ScreenGui.Parent = game:GetService("CoreGui")
+    end)
+
+    -- Fallback: se não funcionar, manda notificação
+    if not success then
+        StarterGui:SetCore("SendNotification", {
+            Title = "Delta Executor",
+            Text = "Não foi possível criar painel no CoreGui!",
+            Duration = 5
+        })
+        return
+    end
+
+    -- Frame principal
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0,180,0,60)
     Frame.Position = UDim2.new(0.5,-90,0.8,0)
@@ -89,6 +106,7 @@ local function createGUI()
     Frame.Parent = ScreenGui
     Frame.Active = true
 
+    -- Botão Teleportar
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(1,-24,1,-24)
     Button.Position = UDim2.new(0,12,0,12)
