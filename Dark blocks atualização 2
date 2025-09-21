@@ -4,17 +4,24 @@
 if not pcall(function() return getgenv().TeleportGUI end) then
     getgenv().TeleportGUI = Instance.new("ScreenGui")
     getgenv().TeleportGUI.Name = "TeleportGUI"
+    getgenv().TeleportGUI.ResetOnSpawn = false
     getgenv().TeleportGUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
 local ScreenGui = getgenv().TeleportGUI
-ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = true -- garante que a GUI esteja visível
+
+-- Remove Frame antigo se existir
+if ScreenGui:FindFirstChild("TeleportFrame") then
+    ScreenGui.TeleportFrame:Destroy()
+end
 
 -- Cria o Frame principal do painel
 local Frame = Instance.new("Frame")
 Frame.Name = "TeleportFrame"
 Frame.Size = UDim2.new(0, 200, 0, 150)
-Frame.Position = UDim2.new(0.5, -100, 0.5, -75)
+Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+Frame.AnchorPoint = Vector2.new(0.5, 0.5) -- centraliza o painel
 Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
 Frame.BorderSizePixel = 2
@@ -52,7 +59,7 @@ NoclipButton.Parent = Frame
 -- Variável para controlar o estado do noclip
 local noclipEnabled = false
 
--- Função principal do teleporte (versão nova com BodyPosition)
+-- Função principal do teleporte (BodyPosition)
 local function teleportar(destino)
     local personagem = game.Players.LocalPlayer.Character
     if not personagem then
@@ -66,10 +73,9 @@ local function teleportar(destino)
     -- Cria o objeto BodyPosition para mover o personagem
     local bodyPosition = Instance.new("BodyPosition")
     bodyPosition.Position = destino
-    bodyPosition.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    bodyPosition.MaxForce = Vector3.new(1e5, 1e5, 1e5) -- Força máxima
     bodyPosition.Parent = humanoideRootPart
 
-    -- Espera um tempo muito curto e remove o BodyPosition
     task.wait(0.01)
     bodyPosition:Destroy()
 end
