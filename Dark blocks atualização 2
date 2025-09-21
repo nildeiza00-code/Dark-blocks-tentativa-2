@@ -1,4 +1,7 @@
--- Teleporte avançado com bypass de anti-cheat
+-- Script Completo: Teleporte Avançado com GUI
+-- Este código combina as funções de teleporte e a interface gráfica em um único arquivo.
+
+-- 1. Variáveis e Serviços
 local player = game.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -9,28 +12,25 @@ local pathLength = 12
 local stepCount = 10
 local stepDelay = 0.07
 
--- Criar grupo de colisão personalizado se não existir
+-- 2. Funções Essenciais
+-- Cria um grupo de colisão personalizado para o bypass do anti-cheat, se ainda não existir.
 if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
     PhysicsService:CreateCollisionGroup("TeleportBypass")
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
 end
 
--- Função: ligar/desligar colisão de forma avançada
+-- Gerencia a colisão do personagem, permitindo que ele passe por objetos.
 local function disableCollision(character, state)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             if state then
-                -- Modo: IGNORAR COLISÕES
                 part.CanCollide = false
                 part.CanTouch = false
                 part.CanQuery = false
                 PhysicsService:SetPartCollisionGroup(part, "TeleportBypass")
-                
-                -- Zera velocidades para evitar detecção
                 part.Velocity = Vector3.new(0, 0, 0)
                 part.RotVelocity = Vector3.new(0, 0, 0)
             else
-                -- Modo: VOLTAR AO NORMAL
                 part.CanCollide = true
                 part.CanTouch = true
                 part.CanQuery = true
@@ -40,50 +40,40 @@ local function disableCollision(character, state)
     end
 end
 
--- Função: teleporte seguro com bypass de anti-cheat
+-- Executa o teleporte em etapas, com bypass de anti-cheat.
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Pequena pausa aleatória antes de começar
     task.wait(math.random(10, 30) / 100)
 
-    -- Desativa colisão de forma avançada
     disableCollision(char, true)
 
-    -- Calcula direção com pequena variação aleatória
     local randomAngle = math.rad(math.random(-5, 5))
     local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
     local targetPos = root.Position + dir * pathLength
 
-    -- Movimento em etapas curtas (substitui o TweenService)
     local steps = math.random(8, 12)
     
     for i = 1, steps do
         if not root or not root.Parent then break end
         
-        -- Calcula cada passo com pequena variação
-        local progress = i / steps
         local currentStep = dir * (pathLength / steps) * (0.9 + math.random() * 0.2)
         local newPos = root.Position + currentStep
         
-        -- Move diretamente com rotação sutil
         root.CFrame = CFrame.new(newPos) * CFrame.Angles(
             math.rad(math.random(-2, 2)),
             math.rad(math.random(-3, 3)),
             math.rad(math.random(-2, 2))
         )
         
-        -- Delay variável entre passos
         task.wait(stepDelay * (0.8 + math.random() * 0.4))
     end
 
-    -- Restaura colisão gradualmente
     task.wait(0.1)
     disableCollision(char, false)
     
-    -- Garante que todas as velocidades estão zeradas
     if root and root.Parent then
         root.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -91,76 +81,41 @@ local function SmoothTeleport()
     end
 end
 
--- GUI (painel e botão) - Corrigido para garantir funcionalidade
-local function safeRemoveGUI()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local existingGUI = playerGui:FindFirstChild("TeleGUI")
-        if existingGUI then
-            existingGUI:Destroy()
-        end
-    end
-end
+-- 3. Interface Gráfica (GUI) - Criada diretamente
+-- Esta seção foi otimizada para garantir que o painel e o botão apareçam.
 
-local function createGUI()
-    safeRemoveGUI()
-    
-    local playerGui = player:WaitForChild("PlayerGui")
-    
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "TeleGUI"
-    ScreenGui.Parent = playerGui
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleGUI"
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 180, 0, 60)
-    Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
-    Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
-    Frame.BorderSizePixel = 0
-    Frame.AnchorPoint = Vector2.new(0.5, 0)
-    Frame.Parent = ScreenGui
-    Frame.Active = true
-    Frame.Draggable = true -- Habilitado para arrastar
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 180, 0, 60)
+Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
+Frame.BorderSizePixel = 0
+Frame.AnchorPoint = Vector2.new(0.5, 0)
+Frame.Parent = ScreenGui
+Frame.Active = true
+Frame.Draggable = true
 
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1, -24, 1, -24)
-    Button.Position = UDim2.new(0, 12, 0, 12)
-    Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
-    Button.TextColor3 = Color3.fromRGB(230, 255, 230)
-    Button.Font = Enum.Font.GothamBold
-    Button.TextSize = 22
-    Button.Text = "TELEPORTAR"
-    Button.Parent = Frame
-    Button.AutoButtonColor = true
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(1, -24, 1, -24)
+Button.Position = UDim2.new(0, 12, 0, 12)
+Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
+Button.TextColor3 = Color3.fromRGB(230, 255, 230)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 22
+Button.Text = "TELEPORTAR"
+Button.Parent = Frame
+Button.AutoButtonColor = true
 
-    -- Conexão simples e direta do botão com a função
-    Button.MouseButton1Click:Connect(SmoothTeleport)
+-- 4. Conexões e Hotkeys
+Button.MouseButton1Click:Connect(SmoothTeleport)
 
-    return ScreenGui
-end
-
--- Hotkey T
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
         SmoothTeleport()
-    end
-end)
-
--- Inicialização da GUI
-if player.Character then
-    createGUI()
-else
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
-        createGUI()
-    end)
-end
-
--- Recriar GUI se necessário
-player.PlayerGui.ChildAdded:Connect(function(child)
-    if child:IsA("ScreenGui") and child.Name ~= "TeleGUI" then
-        task.wait(1)
-        createGUI()
     end
 end)
