@@ -1,43 +1,15 @@
--- SCRIPT COMPLETO FUNCIONAL PARA EXECUTOR
+-- SCRIPT COMPLETO FUNCIONAL
 
 local player = game.Players.LocalPlayer
 if not player then return end
 local playerGui = player:WaitForChild("PlayerGui")
 
--- =======================
--- FUNÇÃO DE TELEPORTE
--- =======================
-local function teleportar(destino)
-    local personagem = player.Character
-    if not personagem then
-        warn("Personagem não encontrado.")
-        return
-    end
-
-    local origem = personagem.PrimaryPart.CFrame.Position
-    local distancia = (destino - origem).Magnitude
-    
-    local velocidade = 10 
-    local passos = math.ceil(distancia / velocidade)
-
-    for i = 1, passos do
-        local alpha = i / passos
-        local novaPosicao = origem:Lerp(destino, alpha)
-        
-        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
-        
-        task.wait() 
-    end
-end
-
--- =======================
--- GUI
--- =======================
--- Remove GUI antiga caso exista
+-- Remove GUI antiga se existir
 if playerGui:FindFirstChild("TeleportGUI") then
     playerGui.TeleportGUI:Destroy()
 end
 
+-- Cria GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TeleportGUI"
 ScreenGui.ResetOnSpawn = false
@@ -83,27 +55,71 @@ NoclipButton.TextSize = 18
 NoclipButton.Parent = Frame
 
 -- =======================
--- NOCILP
+-- VARIÁVEIS
 -- =======================
 local noclipEnabled = false
 
+-- =======================
+-- FUNÇÃO DE TELEPORTE
+-- =======================
+local function teleportar(destino)
+    local character = player.Character
+    if not character or not character.PrimaryPart then
+        warn("Personagem não encontrado ou PrimaryPart não definido.")
+        return
+    end
+
+    local origem = character.PrimaryPart.Position
+    local distancia = (destino - origem).Magnitude
+    local velocidade = 10 
+    local passos = math.ceil(distancia / velocidade)
+
+    for i = 1, passos do
+        local alpha = i / passos
+        local novaPosicao = origem:Lerp(destino, alpha)
+        character:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
+        task.wait()
+    end
+end
+
+-- =======================
+-- FUNÇÃO DE NOCLIP (seu novo código)
+-- =======================
+local RunService = game:GetService("RunService")
+
+local noclipConnection -- para desconectar o loop quando desligar
+
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
-    local character = player.Character
-    if not character then return end
-
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not noclipEnabled and true or false
-        end
-    end
 
     if noclipEnabled then
         NoclipButton.Text = "Atravessar Parede: ON"
         NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+
+        -- Conecta o loop do noclip
+        noclipConnection = RunService.Stepped:Connect(function()
+            if not noclipEnabled then return end
+            local character = player.Character
+            if not character then return end
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not humanoid or not rootPart then return end
+
+            if humanoid.MoveDirection.Magnitude > 0 then
+                local velocidadeDeNoclip = 2
+                rootPart.CFrame = rootPart.CFrame + (humanoid.MoveDirection * velocidadeDeNoclip)
+            end
+        end)
+
     else
         NoclipButton.Text = "Atravessar Parede: OFF"
         NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+
+        -- Desconecta o loop do noclip
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
     end
 end
 
@@ -112,7 +128,7 @@ end
 -- =======================
 TeleportButton.MouseButton1Click:Connect(function()
     local mouse = player:GetMouse()
-    local destino = mouse.Hit.p
+    local destino = mouse.Hit and mouse.Hit.p
     if destino then
         teleportar(destino)
     end
