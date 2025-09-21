@@ -1,160 +1,82 @@
--- Teleporte avançado com bypass de anti-cheat - Versão Delta
-local player = game:GetService("Players").LocalPlayer
-local UIS = game:GetService("UserInputService")
+-- Script de Teleporte Avançado para Roube um Brainrot
+-- Otimizado para evitar detecção de anti-cheat
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local PhysicsService = game:GetService("PhysicsService")
 
--- Configurações do teleporte
-local pathLength = 12
-local teleportCooldown = 1.5
+local localPlayer = Players.LocalPlayer
+local teleportKey = Enum.KeyCode.F -- Tecla para ativar o teleporte (altere se necessário)
+local destination = Vector3.new(100, 50, 200) -- COORDENADAS DE DESTINO (ALTERE PARA SUAS COORDENADAS)
 
--- Estado do teleporte
-local isTeleporting = false
-local lastTeleportTime = 0
-
--- Criar grupo de colisão personalizado
-if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
-    PhysicsService:CreateCollisionGroup("TeleportBypass")
-    PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
-end
-
--- Função para verificar se pode teleportar
-local function canTeleport()
-    return (tick() - lastTeleportTime) > teleportCooldown and not isTeleporting
-end
-
--- Função para gerenciar colisões
-local function manageCollisions(char, disable)
-    if not char then return end
+-- Função para verificar se o destino é seguro (não dentro de objetos)
+local function isPositionSafe(position)
+    local safe = true
     
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if disable then
-                part.CanCollide = false
-                PhysicsService:SetPartCollisionGroup(part, "TeleportBypass")
-            else
-                part.CanCollide = true
-                PhysicsService:SetPartCollisionGroup(part, "Default")
-            end
-        end
+    -- Verifica colisão com raycasts em várias direções
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+    
+    -- Verifica se há objetos sólidos próximos
+    local results = workspace:Raycast(position, Vector3.new(0, -5, 0), raycastParams)
+    if not results then
+        safe = false
     end
+    
+    return safe
 end
 
--- Função de teleporte
-local function SmoothTeleport()
-    if not canTeleport() then return end
+-- Função de teleporte suavizado para evitar detecção
+local function smoothTeleport()
+    if not localPlayer.Character then return end
     
-    isTeleporting = true
-    lastTeleportTime = tick()
+    local humanoidRootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
     
-    local char = player.Character
-    if not char then
-        isTeleporting = false
+    -- Salva a posição atual para possível fallback
+    local originalPosition = humanoidRootPart.Position
+    
+    -- Verifica se o destino é seguro
+    if not isPositionSafe(destination) then
+        warn("Destino não é seguro! Abortando teleporte.")
         return
     end
     
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then 
-        isTeleporting = false
-        return 
+    -- Técnica de teleporte gradual para evitar detecção
+    local steps = 5
+    local stepDuration = 0.05
+    
+    for i = 1, steps do
+        task.wait(stepDuration)
+        
+        -- Interpolação suave entre a posição atual e o destino
+        local progress = i / steps
+        local newPosition = originalPosition:Lerp(destination, progress)
+        
+        -- Aplica a nova posição
+        humanoidRootPart.CFrame = CFrame.new(newPosition)
     end
-
-    -- Desativa colisão
-    manageCollisions(char, true)
-
-    -- Calcula direção
-    local dir = root.CFrame.LookVector
-    local targetPos = root.Position + (dir * pathLength)
-
-    -- Move diretamente para a posição (mais eficaz no Delta)
-    root.CFrame = CFrame.new(targetPos)
-
-    -- Pequena pausa antes de restaurar colisões
+    
+    -- Pequeno ajuste final
     task.wait(0.1)
-    manageCollisions(char, false)
+    humanoidRootPart.CFrame = CFrame.new(destination)
     
-    isTeleporting = false
+    -- Confirmação visual (opcional)
+    print("Teleporte concluído para: " .. tostring(destination))
 end
 
--- Função para criar a GUI (simplificada para o Delta)
-local function createSimpleGUI()
-    -- Remove GUI existente
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local existingGUI = playerGui:FindFirstChild("TeleGUI")
-        if existingGUI then
-            existingGUI:Destroy()
-        end
-    end
+-- Configuração do hotkey
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    -- Cria a GUI
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "TeleGUI"
-    ScreenGui.Parent = player.PlayerGui
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 160, 0, 50)
-    Frame.Position = UDim2.new(0.5, -80, 0.85, 0)
-    Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    Frame.BackgroundTransparency = 0.3
-    Frame.BorderSizePixel = 1
-    Frame.BorderColor3 = Color3.fromRGB(80, 80, 90)
-    Frame.AnchorPoint = Vector2.new(0.5, 0)
-    Frame.Parent = ScreenGui
-
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1, -20, 1, -20)
-    Button.Position = UDim2.new(0, 10, 0, 10)
-    Button.BackgroundColor3 = Color3.fromRGB(70, 100, 70)
-    Button.BackgroundTransparency = 0.2
-    Button.TextColor3 = Color3.fromRGB(220, 255, 220)
-    Button.Font = Enum.Font.GothamBold
-    Button.TextSize = 18
-    Button.Text = "TELEPORTAR"
-    Button.Parent = Frame
-    Button.AutoButtonColor = true
-
-    -- Conexão direta do botão
-    Button.MouseButton1Click:Connect(SmoothTeleport)
-
-    return ScreenGui
-end
-
--- Hotkey T
-UIS.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.T and canTeleport() then
-        SmoothTeleport()
+    if input.KeyCode == teleportKey then
+        -- Pequeno delay aleatório para evitar padrões detectáveis
+        task.wait(math.random(5, 15) / 100)
+        smoothTeleport()
     end
 end)
 
--- Inicialização otimizada para o Delta
-local success, errorMsg = pcall(function()
-    -- Espera pelo PlayerGui
-    while not player:FindFirstChild("PlayerGui") do
-        task.wait(0.1)
-    end
-    
-    -- Cria a GUI
-    createSimpleGUI()
-    print("GUI do Teleporte criada com sucesso!")
-end)
-
-if not success then
-    warn("Erro ao criar GUI: " .. tostring(errorMsg))
-    
-    -- Tenta novamente após 3 segundos
-    task.wait(3)
-    createSimpleGUI()
-end
-
--- Sistema de recriação automática
-RunService.Heartbeat:Connect(function()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui and not playerGui:FindFirstChild("TeleGUI") then
-        task.wait(1)
-        createSimpleGUI()
-    end
-end)
+-- Mensagem de inicialização
+print("Script de teleporte carregado!")
+print("Pressione a tecla F para teleportar") -- Altere se mudar a tecla
