@@ -79,13 +79,12 @@ local function safeRemoveGUI()
     end
 end
 
--- Criar GUI 100% funcional para executores
+-- Criar GUI do zero, 100% funcional para executores
 local function createGUI()
     safeRemoveGUI()
-    
+
     local playerGui = player:WaitForChild("PlayerGui")
-    
-    -- Garantir visibilidade em executores
+
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
     ScreenGui.ResetOnSpawn = false
@@ -110,9 +109,12 @@ local function createGUI()
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- Funcionalidade 100%
+    -- Feedback visual ao clicar
     Button.MouseButton1Click:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(120,255,120)
         SmoothTeleport()
+        task.wait(0.2)
+        Button.BackgroundColor3 = Color3.fromRGB(80,120,80)
     end)
 end
 
