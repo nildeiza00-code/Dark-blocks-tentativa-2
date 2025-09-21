@@ -2,7 +2,6 @@
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local PhysicsService = game:GetService("PhysicsService")
-local StarterGui = game:GetService("StarterGui")
 
 -- Configurações do teleporte
 local pathLength = 12
@@ -14,7 +13,7 @@ if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
 end
 
--- Função: ligar/desligar colisão
+-- Função: ligar/desligar colisão de forma avançada
 local function disableCollision(character, state)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
@@ -35,22 +34,22 @@ local function disableCollision(character, state)
     end
 end
 
--- Função: teleporte
+-- Função: teleporte seguro com bypass de anti-cheat
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
-    local root = char:FindFirstChild("HumanoidRootPart")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
     task.wait(math.random(10,30)/100)
     disableCollision(char,true)
 
     local randomAngle = math.rad(math.random(-5,5))
-    local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
+    local dir = (root.CFrame * CFrame.Angles(0,randomAngle,0)).LookVector
     local steps = math.random(8,12)
-
+    
     for i = 1, steps do
         if not root or not root.Parent then break end
-        local currentStep = dir * (pathLength / steps) * (0.9 + math.random()*0.2)
+        local currentStep = dir * (pathLength/steps) * (0.9 + math.random()*0.2)
         local newPos = root.Position + currentStep
         root.CFrame = CFrame.new(newPos) * CFrame.Angles(
             math.rad(math.random(-2,2)),
@@ -62,6 +61,7 @@ local function SmoothTeleport()
 
     task.wait(0.1)
     disableCollision(char,false)
+
     if root and root.Parent then
         root.Velocity = Vector3.new(0,0,0)
         root.AssemblyLinearVelocity = Vector3.new(0,0,0)
@@ -69,34 +69,18 @@ local function SmoothTeleport()
     end
 end
 
--- Função: criar GUI confiável
+-- Função para criar GUI 100% funcional no Delta
 local function createGUI()
     -- Remove GUI antiga se existir
     if game:GetService("CoreGui"):FindFirstChild("TeleGUI") then
         game:GetService("CoreGui").TeleGUI:Destroy()
     end
 
-    -- Cria ScreenGui
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
     ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = game:GetService("CoreGui")
 
-    -- Tenta colocar no CoreGui (Delta Executor permite)
-    local success, err = pcall(function()
-        ScreenGui.Parent = game:GetService("CoreGui")
-    end)
-
-    -- Fallback: se não funcionar, manda notificação
-    if not success then
-        StarterGui:SetCore("SendNotification", {
-            Title = "Delta Executor",
-            Text = "Não foi possível criar painel no CoreGui!",
-            Duration = 5
-        })
-        return
-    end
-
-    -- Frame principal
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0,180,0,60)
     Frame.Position = UDim2.new(0.5,-90,0.8,0)
@@ -106,7 +90,6 @@ local function createGUI()
     Frame.Parent = ScreenGui
     Frame.Active = true
 
-    -- Botão Teleportar
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(1,-24,1,-24)
     Button.Position = UDim2.new(0,12,0,12)
@@ -117,11 +100,17 @@ local function createGUI()
     Button.Text = "TELEPORTAR"
     Button.Parent = Frame
     Button.AutoButtonColor = true
+
+    -- Conexão do botão
     Button.MouseButton1Click:Connect(SmoothTeleport)
 
-    -- Sistema de arrastar
+    -- Sistema de arrastar o painel
     local dragging = false
     local dragInput, dragStart, startPos
+
+    local function updateInput(input)
+        dragInput = input
+    end
 
     Frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -138,7 +127,7 @@ local function createGUI()
 
     Frame.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
+            updateInput(input)
         end
     end)
 
@@ -157,3 +146,10 @@ end
 
 -- Inicializa GUI
 createGUI()
+
+-- Hotkey T
+UIS.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.T then
+        SmoothTeleport()
+    end
+end)
