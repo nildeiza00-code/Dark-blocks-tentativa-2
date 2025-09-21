@@ -1,102 +1,25 @@
--- Teleporte avançado
--- Use em executores como Delta, Synapse, Arceus X
-
-local player = game.Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local pathLength = 12 -- distância total do "teleporte"
-local stepCount = 10 -- quantos passos curtos
-local stepDelay = 0.07 -- segundos entre passos
-
--- Função para desativar a colisão de todas as partes do personagem
-local function disableCollision(character, state)
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not state
-        end
-    end
-end
-
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Desativa a colisão antes de começar o movimento
+    -- Desativa colisão
     disableCollision(char, false)
 
-    -- Calcula direção para frente
-    local dir = root.CFrame.lookVector
-    -- Divide caminho em passos
-    for i = 1, stepCount do
-        local step = dir * (pathLength / stepCount)
-        local newPos = root.Position + step
+    local dir = root.CFrame.LookVector
+    local targetPos = root.Position + dir * pathLength
 
-        -- Mova o personagem diretamente sem checar colisões, já que elas estão desativadas
-        root.CFrame = CFrame.new(newPos)
+    -- Cria Tween para movimento suave
+    local tweenInfo = TweenInfo.new(
+        stepCount * stepDelay, -- duração total
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.Out
+    )
+    local tweenGoal = {CFrame = CFrame.new(targetPos)}
+    local tween = TweenService:Create(root, tweenInfo, tweenGoal)
+    tween:Play()
+    tween.Completed:Wait()
 
-        task.wait(0.01) -- Pequeno delay para simular movimento
-    end
-
-    -- Reativa a colisão após o teleporte
+    -- Reativa colisão
     disableCollision(char, true)
 end
-
--- GUI
-if player.PlayerGui:FindFirstChild("TeleGUI") then
-    player.PlayerGui:FindFirstChild("TeleGUI"):Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TeleGUI"
-ScreenGui.Parent = player.PlayerGui
-
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 180, 0, 60)
-Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
-Frame.BorderSizePixel = 0
-Frame.AnchorPoint = Vector2.new(0.5,0)
-Frame.Parent = ScreenGui
-
-local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(1, -24, 1, -24)
-Button.Position = UDim2.new(0, 12, 0, 12)
-Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
-Button.TextColor3 = Color3.fromRGB(230, 255, 230)
-Button.Font = Enum.Font.GothamBold
-Button.TextSize = 22
-Button.Text = "TELEPORTAR"
-Button.Parent = Frame
-
-Button.MouseButton1Click:Connect(SmoothTeleport)
-
--- Hotkey T
-UIS.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.T then
-        SmoothTeleport()
-    end
-end)
-
--- Arrastar painel
-local dragging, dragInput, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-Frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
-end)
-UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
