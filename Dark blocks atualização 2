@@ -1,13 +1,23 @@
+-- Script adaptado: GUI visível + teleporte suave com 10 studs/frame via mouse
+
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Remove GUI se já existir, pra evitar duplicações
+if playerGui:FindFirstChild("TeleportGUI") then
+    playerGui.TeleportGUI:Destroy()
+end
+
 -- Cria a ScreenGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "TeleportGUI"
 gui.ResetOnSpawn = false
-gui.Parent = game:GetService("CoreGui") -- em executores costuma funcionar no CoreGui
+gui.Parent = playerGui
 
 -- Cria o botão
 local botao = Instance.new("TextButton")
 botao.Size = UDim2.new(0, 200, 0, 50)
-botao.Position = UDim2.new(0.5, -100, 0.8, 0) -- centralizado embaixo
+botao.Position = UDim2.new(0.5, -100, 0.8, 0) -- embaixo da tela, centralizado
 botao.Text = "Teleportar"
 botao.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 botao.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -15,30 +25,35 @@ botao.Font = Enum.Font.SourceSansBold
 botao.TextSize = 22
 botao.Parent = gui
 
--- Função de movimento com força (seu código adaptado)
-local function moverComVelocidade(personagem, destino, forca)
-    local humanoidRootPart = personagem:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
+-- Função de teleporte suave, com sua lógica de 10 studs/frame
+local function teleportar(destino)
+    local personagem = player.Character
+    if not personagem or not personagem.PrimaryPart then
+        warn("Personagem ou PrimaryPart não encontrado.")
+        return
+    end
 
-    local direcao = (destino - humanoidRootPart.Position).Unit
-    local vectorDeVelocidade = direcao * forca
+    local origem = personagem.PrimaryPart.Position
+    local distancia = (destino - origem).Magnitude
+    local velocidade = 10
+    local passos = math.ceil(distancia / velocidade)
 
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(forca, forca, forca)
-    bodyVelocity.Velocity = vectorDeVelocidade
-    bodyVelocity.Parent = humanoidRootPart
-
-    task.wait(1) -- tempo do dash/teleporte
-
-    bodyVelocity:Destroy()
+    for i = 1, passos do
+        local alpha = i / passos
+        local novaPos = origem:Lerp(destino, alpha)
+        personagem:SetPrimaryPartCFrame(CFrame.new(novaPos))
+        task.wait()
+    end
 end
 
--- Ação do botão
+-- Quando clicar no botão
 botao.MouseButton1Click:Connect(function()
-    local player = game.Players.LocalPlayer
-    if player and player.Character then
-        local pontoDeTeleporte = CFrame.new(0, 50, 0).Position -- DESTINO fixo
-        local forcaDeTeleporte = 500
-        moverComVelocidade(player.Character, pontoDeTeleporte, forcaDeTeleporte)
+    local mouse = player:GetMouse()
+    -- Espera um momento até clicar no jogo para definir destino, ou usar mouse.Hit
+    local destino = mouse.Hit and mouse.Hit.p
+    if destino then
+        teleportar(destino)
+    else
+        warn("Não conseguiu determinar posição do mouse.")
     end
 end)
