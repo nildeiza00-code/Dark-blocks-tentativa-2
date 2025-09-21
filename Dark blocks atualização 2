@@ -1,10 +1,10 @@
--- SCRIPT COMPLETO FUNCIONAL
+-- SCRIPT FUNCIONAL COM TELEPORTE E NOCLIP
 
 local player = game.Players.LocalPlayer
 if not player then return end
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Remove GUI antiga se existir
+-- Remove GUI antiga caso exista
 if playerGui:FindFirstChild("TeleportGUI") then
     playerGui.TeleportGUI:Destroy()
 end
@@ -63,13 +63,13 @@ local noclipEnabled = false
 -- FUNÇÃO DE TELEPORTE
 -- =======================
 local function teleportar(destino)
-    local character = player.Character
-    if not character or not character.PrimaryPart then
+    local personagem = player.Character
+    if not personagem or not personagem.PrimaryPart then
         warn("Personagem não encontrado ou PrimaryPart não definido.")
         return
     end
 
-    local origem = character.PrimaryPart.Position
+    local origem = personagem.PrimaryPart.Position
     local distancia = (destino - origem).Magnitude
     local velocidade = 10 
     local passos = math.ceil(distancia / velocidade)
@@ -77,49 +77,28 @@ local function teleportar(destino)
     for i = 1, passos do
         local alpha = i / passos
         local novaPosicao = origem:Lerp(destino, alpha)
-        character:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
+        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
         task.wait()
     end
 end
 
 -- =======================
--- FUNÇÃO DE NOCLIP (seu novo código)
+-- FUNÇÃO DE NOCLIP (nova linha que você enviou)
 -- =======================
-local RunService = game:GetService("RunService")
-
-local noclipConnection -- para desconectar o loop quando desligar
-
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
+    
+    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+    if not humanoid then return end
 
     if noclipEnabled then
+        humanoid.PlatformStand = true
         NoclipButton.Text = "Atravessar Parede: ON"
         NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-
-        -- Conecta o loop do noclip
-        noclipConnection = RunService.Stepped:Connect(function()
-            if not noclipEnabled then return end
-            local character = player.Character
-            if not character then return end
-            local humanoid = character:FindFirstChild("Humanoid")
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if not humanoid or not rootPart then return end
-
-            if humanoid.MoveDirection.Magnitude > 0 then
-                local velocidadeDeNoclip = 2
-                rootPart.CFrame = rootPart.CFrame + (humanoid.MoveDirection * velocidadeDeNoclip)
-            end
-        end)
-
     else
+        humanoid.PlatformStand = false
         NoclipButton.Text = "Atravessar Parede: OFF"
         NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-
-        -- Desconecta o loop do noclip
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
-        end
     end
 end
 
