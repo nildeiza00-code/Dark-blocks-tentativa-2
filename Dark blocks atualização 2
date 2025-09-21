@@ -69,25 +69,17 @@ local function SmoothTeleport()
     end
 end
 
--- GUI corrigida para Delta Executor
-local function safeRemoveGUI()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local existingGUI = playerGui:FindFirstChild("TeleGUI")
-        if existingGUI then
-            existingGUI:Destroy()
-        end
-    end
-end
-
+-- GUI funcional para Delta Executor (usa CoreGui)
 local function createGUI()
-    safeRemoveGUI()
-    local playerGui = player:WaitForChild("PlayerGui")
+    -- Remover se já existir
+    if game:GetService("CoreGui"):FindFirstChild("TeleGUI") then
+        game:GetService("CoreGui"):FindFirstChild("TeleGUI"):Destroy()
+    end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = playerGui
+    ScreenGui.Parent = game:GetService("CoreGui") -- <<== Crucial para Delta
 
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0,180,0,60)
@@ -108,8 +100,6 @@ local function createGUI()
     Button.Text = "TELEPORTAR"
     Button.Parent = Frame
     Button.AutoButtonColor = true
-
-    -- Conexão do botão corrigida
     Button.MouseButton1Click:Connect(SmoothTeleport)
 
     -- Sistema de arrastar
@@ -143,7 +133,7 @@ local function createGUI()
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             Frame.Position = UDim2.new(
-                startPos.X.Scale, 
+                startPos.X.Scale,
                 startPos.X.Offset + delta.X,
                 startPos.Y.Scale,
                 startPos.Y.Offset + delta.Y
@@ -152,28 +142,5 @@ local function createGUI()
     end)
 end
 
--- Hotkey T
-UIS.InputBegan:Connect(function(input,processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.T then
-        SmoothTeleport()
-    end
-end)
-
--- Inicialização da GUI
-if player.Character then
-    createGUI()
-else
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
-        createGUI()
-    end)
-end
-
--- Recriar GUI se PlayerGui for reiniciado
-player.PlayerGui.ChildRemoved:Connect(function(child)
-    if child.Name == "TeleGUI" then
-        task.wait(0.3)
-        createGUI()
-    end
-end)
+-- Inicialização
+createGUI()
