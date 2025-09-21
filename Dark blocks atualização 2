@@ -1,22 +1,9 @@
 --[[
     Script Profissional de Teleporte + Noclip para Roblox
-    Seguro contra anti-cheat (anti-shit) e com interface GUI
-
     Autor: nildeiza00-code + Copilot
-    Jogo-alvo: Roube um Brainrot
-    Observação: Altere as COORDENADAS no painel do script
-
-    RECURSOS:
-      - Painel GUI para ativar/desativar teleporte e noclip.
-      - Teleporte gradual e natural para evitar detecção.
-      - Noclip automático ao teletransportar.
-      - Delay e randomização nos movimentos.
-      - Seguro contra resete de posição e morte do personagem.
+    Compatível com Delta
 ]]
 
-----------------------------
--- 1. Serviços e Variáveis --
-----------------------------
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -25,21 +12,16 @@ local StarterGui = game:GetService("StarterGui")
 local localPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configuração inicial
 local teleportKey = Enum.KeyCode.F
 local noclipKey = Enum.KeyCode.G
 
--- Destino padrão (edite via GUI)
-local teleportDestination = Vector3.new(100, 50, 200)
+local teleportDestination = Vector3.new(100,50,200)
 local isNoclipActive = false
 local isTeleporting = false
 
----------------------------
--- 2. GUI PROFISSIONAL   --
----------------------------
+-- Função para criar GUI
 local function createTeleportGUI()
-    -- Evita múltiplos GUIs
-    if localPlayer.PlayerGui:FindFirstChild("TeleportPanel") then
+    if localPlayer:WaitForChild("PlayerGui"):FindFirstChild("TeleportPanel") then
         localPlayer.PlayerGui.TeleportPanel:Destroy()
     end
 
@@ -49,16 +31,16 @@ local function createTeleportGUI()
     screenGui.Parent = localPlayer.PlayerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 240, 0, 160)
-    frame.Position = UDim2.new(0.5, -120, 0.1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    frame.Size = UDim2.new(0,240,0,160)
+    frame.Position = UDim2.new(0.5,-120,0.1,0)
+    frame.BackgroundColor3 = Color3.fromRGB(25,25,30)
     frame.BorderSizePixel = 0
     frame.BackgroundTransparency = 0.1
     frame.Parent = screenGui
 
     local title = Instance.new("TextLabel")
     title.Text = "TELEPORTE PRO"
-    title.Size = UDim2.new(1, 0, 0, 28)
+    title.Size = UDim2.new(1,0,0,28)
     title.BackgroundTransparency = 1
     title.Font = Enum.Font.GothamBold
     title.TextColor3 = Color3.fromRGB(200,255,120)
@@ -100,7 +82,7 @@ local function createTeleportGUI()
     zBox.PlaceholderText = tostring(teleportDestination.Z)
     zBox.Parent = frame
 
-    -- Botão Teleportar
+    -- Botão Teleporte
     local teleportBtn = Instance.new("TextButton")
     teleportBtn.Text = "Teleportar (F)"
     teleportBtn.Size = UDim2.new(0.7,0,0,32)
@@ -122,23 +104,22 @@ local function createTeleportGUI()
     noclipBtn.TextSize = 14
     noclipBtn.Parent = frame
 
-    -- Atualiza destino ao editar caixas
+    -- Atualiza destino
     local function updateDestination()
         local x = tonumber(xBox.Text) or teleportDestination.X
         local y = tonumber(yBox.Text) or teleportDestination.Y
         local z = tonumber(zBox.Text) or teleportDestination.Z
-        teleportDestination = Vector3.new(x, y, z)
+        teleportDestination = Vector3.new(x,y,z)
     end
     xBox.FocusLost:Connect(updateDestination)
     yBox.FocusLost:Connect(updateDestination)
     zBox.FocusLost:Connect(updateDestination)
 
-    -- Ações dos botões
+    -- Eventos dos botões
     teleportBtn.MouseButton1Click:Connect(function()
         updateDestination()
         _G.TeleportPro_TryTeleport()
     end)
-
     noclipBtn.MouseButton1Click:Connect(function()
         isNoclipActive = not isNoclipActive
         noclipBtn.Text = "Noclip: "..(isNoclipActive and "LIGADO" or "DESLIGADO").." (G)"
@@ -146,9 +127,7 @@ local function createTeleportGUI()
     end)
 end
 
--------------------------
--- 3. Noclip Seguro   ---
--------------------------
+-- Noclip
 local function setNoclip(state)
     if not localPlayer.Character then return end
     for _, v in pairs(localPlayer.Character:GetDescendants()) do
@@ -158,59 +137,41 @@ local function setNoclip(state)
     end
 end
 
--- Noclip loop (ativo só durante noclip)
-local noclipConn
-local function noclipLoop()
-    if noclipConn then noclipConn:Disconnect() end
-    noclipConn = RunService.Stepped:Connect(function()
-        if isNoclipActive and localPlayer.Character then
-            setNoclip(true)
-        end
-    end)
-end
-noclipLoop()
+RunService.Stepped:Connect(function()
+    if isNoclipActive then
+        setNoclip(true)
+    end
+end)
 
--------------------------
--- 4. Teleporte Seguro -
--------------------------
+-- Teleporte Seguro
 local function safeTeleport(destination)
     if isTeleporting or not localPlayer.Character then return end
     isTeleporting = true
+
     local char = localPlayer.Character
     local root = char:FindFirstChild("HumanoidRootPart")
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not root or not humanoid then isTeleporting = false return end
 
-    -- Backup para fallback
     local originalPos = root.Position
-
-    -- Liga o noclip temporário
     local prevNoclip = isNoclipActive
     isNoclipActive = true
     setNoclip(true)
 
-    -- Caminho gradual até o destino com delays randômicos
-    local steps = math.random(7, 13)
+    local steps = math.random(7,13)
     for i=1,steps do
-        -- Interpola com pequenas variações
         local t = i / steps
-        local offset = Vector3.new(
-            math.random(-2,2)*0.15,
-            math.random(-2,2)*0.1,
-            math.random(-2,2)*0.15
-        )
+        local offset = Vector3.new(math.random(-2,2)*0.15, math.random(-2,2)*0.1, math.random(-2,2)*0.15)
         local nextPos = originalPos:Lerp(destination, t) + offset
-        root.CFrame = CFrame.new(nextPos, destination)
+        root.CFrame = CFrame.new(nextPos,destination)
         humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-        task.wait(math.random(30, 60)/1000)
+        task.wait(math.random(30,60)/1000)
     end
 
-    -- Ajuste final
     root.CFrame = CFrame.new(destination)
     humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
     task.wait(0.1)
 
-    -- Desliga noclip caso não estava ativado antes
     if not prevNoclip then
         isNoclipActive = false
         setNoclip(false)
@@ -219,16 +180,14 @@ local function safeTeleport(destination)
     isTeleporting = false
 end
 
---------------------------
--- 5. HOTKEYS E ACIONAR --
---------------------------
+-- Função global
 function _G.TeleportPro_TryTeleport()
     if isTeleporting then return end
-    -- Pequeno delay aleatório para naturalidade
     task.wait(math.random(8,22)/100)
     safeTeleport(teleportDestination)
 end
 
+-- Hotkeys
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == teleportKey then
@@ -238,14 +197,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
---------------------------
--- 6. Inicialização     --
---------------------------
+-- Inicialização
 createTeleportGUI()
-noclipLoop()
 StarterGui:SetCore("SendNotification", {
     Title = "Teleport Pro";
-    Text = "Script carregado! Use o painel ou F para teleportar, G para noclip.";
+    Text = "Script carregado! Use o painel ou F (teleporte) / G (noclip).";
     Duration = 7;
 })
-print("Teleport Pro carregado! Use o painel ou F (teleporte) / G (noclip).")
+print("Teleport Pro carregado! Use o painel ou F / G para noclip.")
