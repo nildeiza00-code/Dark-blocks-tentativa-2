@@ -4,7 +4,8 @@
 if not pcall(function() return getgenv().TeleportGUI end) then
     getgenv().TeleportGUI = Instance.new("ScreenGui")
     getgenv().TeleportGUI.Name = "TeleportGUI"
-    getgenv().TeleportGUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    -- Parent no CoreGui para garantir que apareça no executor
+    getgenv().TeleportGUI.Parent = game:GetService("CoreGui")
 end
 
 local ScreenGui = getgenv().TeleportGUI
@@ -13,7 +14,7 @@ ScreenGui.ResetOnSpawn = false
 -- Cria o Frame principal do painel
 local Frame = Instance.new("Frame")
 Frame.Name = "TeleportFrame"
-Frame.Size = UDim2.new(0, 200, 0, 150) -- Aumentei a altura para caber outro botão
+Frame.Size = UDim2.new(0, 200, 0, 150) 
 Frame.Position = UDim2.new(0.5, -100, 0.5, -75)
 Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
@@ -52,49 +53,30 @@ NoclipButton.Parent = Frame
 -- Variável para controlar o estado do noclip
 local noclipEnabled = false
 
--- Função principal do teleporte
-local function teleportar(destino)
-    local personagem = game.Players.LocalPlayer.Character
-    if not personagem then
-        warn("Personagem não encontrado.")
-        return
-    end
-
-    local origem = personagem.PrimaryPart.CFrame.Position
-    local distancia = (destino - origem).Magnitude
-    
-    local velocidade = 10 
-    local passos = math.ceil(distancia / velocidade)
-
-    for i = 1, passos do
-        local alpha = i / passos
-        local novaPosicao = origem:Lerp(destino, alpha)
-        
-        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
-        
-        task.wait() 
-    end
-end
-
--- Função para ativar/desativar o noclip
+-- Função para ativar/desativar o noclip (melhorada)
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
     local personagem = game.Players.LocalPlayer.Character
     if not personagem then return end
 
-    local humanoidRootPart = personagem:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-
     if noclipEnabled then
-        -- Desativa a colisão
-        humanoidRootPart.CanCollide = false
+        -- Desativa colisão em todas as partes do personagem
+        for _, part in pairs(personagem:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
         NoclipButton.Text = "Atravessar Parede: ON"
-        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.5, 0.2) -- Cor verde para indicar que está ativo
+        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.5, 0.2)
     else
-        -- Reativa a colisão
-        humanoidRootPart.CanCollide = true
+        -- Reativa colisão em todas as partes do personagem
+        for _, part in pairs(personagem:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
         NoclipButton.Text = "Atravessar Parede: OFF"
-        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2) -- Cor original
+        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
     end
 end
 
@@ -102,9 +84,8 @@ end
 TeleportButton.MouseButton1Click:Connect(function()
     local mouse = game.Players.LocalPlayer:GetMouse()
     local destino = mouse.Hit.p
-    
     if destino then
-        teleportar(destino)
+        teleportar(destino) -- NUNCA alterado
     end
 end)
 
