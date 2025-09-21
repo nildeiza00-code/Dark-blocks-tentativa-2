@@ -1,0 +1,44 @@
+-- Cria a ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "TeleportGUI"
+gui.ResetOnSpawn = false
+gui.Parent = game:GetService("CoreGui") -- em executores costuma funcionar no CoreGui
+
+-- Cria o botão
+local botao = Instance.new("TextButton")
+botao.Size = UDim2.new(0, 200, 0, 50)
+botao.Position = UDim2.new(0.5, -100, 0.8, 0) -- centralizado embaixo
+botao.Text = "Teleportar"
+botao.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+botao.TextColor3 = Color3.fromRGB(255, 255, 255)
+botao.Font = Enum.Font.SourceSansBold
+botao.TextSize = 22
+botao.Parent = gui
+
+-- Função de movimento com força (seu código adaptado)
+local function moverComVelocidade(personagem, destino, forca)
+    local humanoidRootPart = personagem:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+
+    local direcao = (destino - humanoidRootPart.Position).Unit
+    local vectorDeVelocidade = direcao * forca
+
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(forca, forca, forca)
+    bodyVelocity.Velocity = vectorDeVelocidade
+    bodyVelocity.Parent = humanoidRootPart
+
+    task.wait(1) -- tempo do dash/teleporte
+
+    bodyVelocity:Destroy()
+end
+
+-- Ação do botão
+botao.MouseButton1Click:Connect(function()
+    local player = game.Players.LocalPlayer
+    if player and player.Character then
+        local pontoDeTeleporte = CFrame.new(0, 50, 0).Position -- DESTINO fixo
+        local forcaDeTeleporte = 500
+        moverComVelocidade(player.Character, pontoDeTeleporte, forcaDeTeleporte)
+    end
+end)
