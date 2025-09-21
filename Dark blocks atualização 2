@@ -1,74 +1,60 @@
--- Teleporte com bypass de colisão para paredes
+-- Teleporte avançado com bypass de anti-cheat e colisão
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local pathLength = 10
-local stepCount = 8
-local stepDelay = 0.06
 
--- Variáveis para controle
+-- Configurações ajustáveis
+local pathLength = 12
+local stepCount = 14
+local stepDelay = 0.05
+local teleportCooldown = 1.5
+
+-- Estado do teleporte
 local isTeleporting = false
 local lastTeleportTime = 0
-local teleportCooldown = 1.2
 
 -- Função para verificar se pode teleportar
 local function canTeleport()
     return (tick() - lastTeleportTime) > teleportCooldown and not isTeleporting
 end
 
--- Função para ignorar colisões com segurança
-local function safelyIgnoreCollisions(char, ignore)
+-- Função avançada para ignorar colisões
+local function manageCollisions(char, disable)
     if not char then return end
     
-    local humanoid = char:FindFirstChild("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
+    local PhysicsService = game:GetService("PhysicsService")
     
-    if ignore then
-        -- Método 1: Usando PhysicsService para criar colisão personalizada
-        local PhysicsService = game:GetService("PhysicsService")
-        
-        -- Cria colisão personalizada se não existir
-        if not PhysicsService:GetCollisionGroupName("TeleportGroup") then
-            PhysicsService:CreateCollisionGroup("TeleportGroup")
-            PhysicsService:CollisionGroupSetCollidable("TeleportGroup", "Default", false)
-        end
-        
-        -- Aplica a colisão personalizada a todas as partes
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
+    -- Cria grupo de colisão personalizado se não existir
+    if not PhysicsService:GetCollisionGroupName("NoCollideGroup") then
+        PhysicsService:CreateCollisionGroup("NoCollideGroup")
+        PhysicsService:CollisionGroupSetCollidable("NoCollideGroup", "Default", false)
+    end
+    
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if disable then
+                -- Modo sem colisão
                 part.CanCollide = false
                 part.CanTouch = false
                 part.CanQuery = false
-                PhysicsService:SetPartCollisionGroup(part, "TeleportGroup")
-            end
-        end
-        
-        -- Método alternativo: Torna as partes fantasma
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            task.wait(0.05)
-        end
-    else
-        -- Restaura colisões normais
-        local PhysicsService = game:GetService("PhysicsService")
-        
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
+                PhysicsService:SetPartCollisionGroup(part, "NoCollideGroup")
+                
+                -- Zera velocidades para evitar detecção
+                part.Velocity = Vector3.new()
+                part.RotVelocity = Vector3.new()
+            else
+                -- Restaura colisão normal
                 part.CanCollide = true
                 part.CanTouch = true
                 part.CanQuery = true
                 PhysicsService:SetPartCollisionGroup(part, "Default")
             end
         end
-        
-        if humanoid and root then
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
     end
 end
 
--- Função principal de teleporte
-local function WallBypassTeleport()
+-- Função de teleporte otimizada
+local function AdvancedTeleport()
     if not canTeleport() then return end
     
     isTeleporting = true
@@ -88,59 +74,63 @@ local function WallBypassTeleport()
         return 
     end
 
-    -- Salva estado original
+    -- Salva estado original para restauração
     local originalPosition = root.Position
-    local originalCFrame = root.CFrame
     
-    -- 1. Primeiro, verifica se há uma parede à frente
+    -- Prepara para ignorar colisões
+    manageCollisions(char, true)
+    
+    -- Detecta se há paredes no caminho
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = {char}
     raycastParams.IgnoreWater = true
     
-    local rayDirection = root.CFrame.lookVector * (pathLength + 5)
-    local raycastResult = workspace:Raycast(root.Position, rayDirection, raycastParams)
+    local direction = root.CFrame.LookVector
+    local targetPosition = root.Position + (direction * pathLength)
     
-    local targetPosition = root.Position + (root.CFrame.lookVector * pathLength)
+    -- Verifica colisão com parede
+    local rayResult = workspace:Raycast(root.Position, direction * (pathLength + 2), raycastParams)
     
-    -- Se há uma parede no caminho, ajusta o destino para além dela
-    if raycastResult then
-        local wallNormal = raycastResult.Normal
-        local wallPosition = raycastResult.Position
-        
-        -- Calcula posição além da parede
-        local adjustment = wallNormal * 1.5  -- Pequeno ajuste para passar completamente
-        targetPosition = wallPosition + adjustment
+    if rayResult then
+        -- Se há parede, calcula posição logo após ela
+        local normal = rayResult.Normal
+        local surfacePosition = rayResult.Position
+        targetPosition = surfacePosition + (normal * 1.5)
     end
 
-    -- 2. Prepara para ignorar colisões
-    safelyIgnoreCollisions(char, true)
+    -- Movimento em etapas com variação aleatória
+    local totalDistance = (targetPosition - root.Position).Magnitude
+    local stepDistance = totalDistance / stepCount
     
-    -- 3. Executa o teleporte em etapas
-    local direction = (targetPosition - root.Position).Unit
-    local distance = (targetPosition - root.Position).Magnitude
-    local steps = math.ceil(distance / (pathLength / stepCount))
-    
-    for i = 1, steps do
+    for i = 1, stepCount do
         if not root or not root.Parent then break end
         
-        local progress = i / steps
-        local stepVector = direction * (distance / steps)
-        local newPosition = root.Position + stepVector
+        -- Interpolação com easing natural
+        local progress = i / stepCount
+        local easeValue = 0.5 - math.cos(progress * math.pi) / 2  -- Easing suave
         
-        -- Move suavemente
-        root.CFrame = CFrame.new(newPosition, newPosition + direction)
+        local currentStep = direction * (stepDistance * easeValue)
+        local newPosition = root.Position + currentStep
         
-        -- Pequeno delay com variação aleatória
-        task.wait(stepDelay * (0.9 + math.random() * 0.2))
+        -- Aplica movimento com pequena variação aleatória
+        root.CFrame = CFrame.new(newPosition) * CFrame.Angles(
+            math.rad(math.random(-1, 1)),
+            math.rad(math.random(-2, 2)),
+            math.rad(math.random(-1, 1))
+        )
+        
+        -- Delay variável entre passos
+        task.wait(stepDelay * (0.8 + math.random() * 0.4))
     end
 
-    -- 4. Restaura colisões após um pequeno delay
+    -- Pequena pausa antes de restaurar colisões
     task.wait(0.1)
-    safelyIgnoreCollisions(char, false)
     
-    -- 5. Pequeno ajuste final para garantir estabilidade
-    task.wait(0.2)
+    -- Restaura colisões
+    manageCollisions(char, false)
+    
+    -- Garante que o personagem está estável
     if root and root.Parent then
         root.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -150,7 +140,7 @@ local function WallBypassTeleport()
     isTeleporting = false
 end
 
--- Interface do usuário (igual à anterior)
+-- Interface do usuário melhorada
 if player.PlayerGui:FindFirstChild("TeleGUI") then
     player.PlayerGui:FindFirstChild("TeleGUI"):Destroy()
 end
@@ -158,47 +148,48 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TeleGUI"
 ScreenGui.Parent = player.PlayerGui
+ScreenGui.Enabled = true
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 160, 0, 50)
-Frame.Position = UDim2.new(0.5, -80, 0.85, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-Frame.BackgroundTransparency = 0.4
+Frame.Size = UDim2.new(0, 170, 0, 55)
+Frame.Position = UDim2.new(0.5, -85, 0.82, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+Frame.BackgroundTransparency = 0.3
 Frame.BorderSizePixel = 1
-Frame.BorderColor3 = Color3.fromRGB(80, 80, 90)
+Frame.BorderColor3 = Color3.fromRGB(70, 70, 80)
 Frame.AnchorPoint = Vector2.new(0.5, 0)
 Frame.Parent = ScreenGui
 
 local Button = Instance.new("TextButton")
 Button.Size = UDim2.new(1, -20, 1, -20)
 Button.Position = UDim2.new(0, 10, 0, 10)
-Button.BackgroundColor3 = Color3.fromRGB(70, 100, 70)
+Button.BackgroundColor3 = Color3.fromRGB(75, 110, 75)
 Button.BackgroundTransparency = 0.2
-Button.TextColor3 = Color3.fromRGB(220, 255, 220)
-Button.Font = Enum.Font.Gotham
-Button.TextSize = 16
+Button.TextColor3 = Color3.fromRGB(225, 255, 225)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 18
 Button.Text = "ATRAVESSAR"
 Button.Parent = Frame
 
-Button.MouseButton1Click:Connect(WallBypassTeleport)
+Button.MouseButton1Click:Connect(AdvancedTeleport)
 
--- Hotkey T
+-- Hotkey T com cooldown
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T and canTeleport() then
-        WallBypassTeleport()
+        AdvancedTeleport()
     end
 end)
 
--- Sistema para ocultar/mostrar a GUI (Shift + P)
+-- Sistema para ocultar/mostrar a GUI (Shift + H)
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
-    if input.KeyCode == Enum.KeyCode.P and UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+    if input.KeyCode == Enum.KeyCode.H and UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
         ScreenGui.Enabled = not ScreenGui.Enabled
     end
 end)
 
--- Arrastar painel
+-- Sistema de arrastar painel
 local dragging, dragInput, dragStart, startPos
 Frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -219,5 +210,17 @@ UIS.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Indicador de cooldown
+RunService.Heartbeat:Connect(function()
+    if tick() - lastTeleportTime < teleportCooldown then
+        local remaining = teleportCooldown - (tick() - lastTeleportTime)
+        Button.Text = string.format("Cooldown: %.1f", remaining)
+        Button.BackgroundColor3 = Color3.fromRGB(110, 75, 75)
+    else
+        Button.Text = "ATRAVESSAR"
+        Button.BackgroundColor3 = Color3.fromRGB(75, 110, 75)
     end
 end)
