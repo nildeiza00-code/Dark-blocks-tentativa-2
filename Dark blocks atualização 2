@@ -40,14 +40,14 @@ local function SmoothTeleport()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    task.wait(math.random(10, 30)/100)
-    disableCollision(char, true)
+    task.wait(math.random(10,30)/100)
+    disableCollision(char,true)
 
     local randomAngle = math.rad(math.random(-5,5))
-    local dir = (root.CFrame * CFrame.Angles(0, randomAngle,0)).LookVector
+    local dir = (root.CFrame * CFrame.Angles(0,randomAngle,0)).LookVector
     local steps = math.random(8,12)
 
-    for i=1, steps do
+    for i=1,steps do
         if not root or not root.Parent then break end
         local currentStep = dir * (pathLength / steps) * (0.9 + math.random()*0.2)
         local newPos = root.Position + currentStep
@@ -56,7 +56,7 @@ local function SmoothTeleport()
             math.rad(math.random(-3,3)),
             math.rad(math.random(-2,2))
         )
-        task.wait(stepDelay * (0.8 + math.random()*0.4))
+        task.wait(stepDelay*(0.8 + math.random()*0.4))
     end
 
     task.wait(0.1)
@@ -79,19 +79,21 @@ local function safeRemoveGUI()
     end
 end
 
--- Criar GUI com botão funcional
+-- Criar GUI 100% funcional para executores
 local function createGUI()
     safeRemoveGUI()
+    
     local playerGui = player:WaitForChild("PlayerGui")
-
+    
+    -- Garantir visibilidade em executores
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
+    ScreenGui.ResetOnSpawn = false
     ScreenGui.Parent = playerGui
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0,180,0,60)
-    Frame.Position = UDim2.new(0,20,0.5,-30) -- canto esquerdo central
+    Frame.Size = UDim2.new(0,200,0,50)
+    Frame.Position = UDim2.new(0,20,0.5,-25)
     Frame.BackgroundColor3 = Color3.fromRGB(33,33,40)
     Frame.BorderSizePixel = 0
     Frame.AnchorPoint = Vector2.new(0,0.5)
@@ -108,7 +110,7 @@ local function createGUI()
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- Botão agora chama SmoothTeleport corretamente
+    -- Funcionalidade 100%
     Button.MouseButton1Click:Connect(function()
         SmoothTeleport()
     end)
