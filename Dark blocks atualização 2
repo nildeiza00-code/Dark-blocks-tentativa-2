@@ -1,8 +1,7 @@
 --[[
-    Script Profissional de Teleporte + Noclip para Roblox
-    Autor: nildeiza00-code + Melhorias para Anti-Cheat e Spawn
-    Compatível com Delta
-    Versão Melhorada: Correção de Noclip e Otimização Anti-Detecção
+    Script Profissional de Teleporte + Noclip + Pega Objetos
+    Autor: nildeiza00-code + Melhorias para Anti-Cheat
+    Compatível com a maioria dos jogos
 ]]
 
 local Players = game:GetService("Players")
@@ -11,17 +10,22 @@ local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local ContextActionService = game:GetService("ContextActionService")
 
 local localPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local teleportKey = Enum.KeyCode.F
 local noclipKey = Enum.KeyCode.G
+local grabKey = Enum.KeyCode.H
 
 local teleportDestination = Vector3.new(100, 50, 200)
 local isNoclipActive = false
 local isTeleporting = false
+local isGrabbing = false
 local noclipConnection = nil
+local grabConnection = nil
+local grabbedObject = nil
 
 -- Função para encontrar o Spawn Principal
 local function getSpawnPosition()
@@ -33,7 +37,7 @@ local function getSpawnPosition()
     end
 end
 
--- Função para criar GUI com opção de Spawn
+-- Função para criar GUI
 local function createTeleportGUI()
     if localPlayer:WaitForChild("PlayerGui"):FindFirstChild("TeleportPanel") then
         localPlayer.PlayerGui.TeleportPanel:Destroy()
@@ -45,8 +49,8 @@ local function createTeleportGUI()
     screenGui.Parent = localPlayer.PlayerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 240, 0, 180)
-    frame.Position = UDim2.new(0.5, -120, 0.1, 0)
+    frame.Size = UDim2.new(0, 260, 0, 210)
+    frame.Position = UDim2.new(0.5, -130, 0.1, 0)
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     frame.BorderSizePixel = 0
     frame.BackgroundTransparency = 0.1
@@ -99,35 +103,46 @@ local function createTeleportGUI()
     -- Botão Teleporte
     local teleportBtn = Instance.new("TextButton")
     teleportBtn.Text = "Teleportar (F)"
-    teleportBtn.Size = UDim2.new(0.7, 0, 0, 32)
+    teleportBtn.Size = UDim2.new(0.7, 0, 0, 28)
     teleportBtn.Position = UDim2.new(0.15, 0, 0, 95)
     teleportBtn.BackgroundColor3 = Color3.fromRGB(90, 190, 120)
     teleportBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
     teleportBtn.Font = Enum.Font.GothamBold
-    teleportBtn.TextSize = 18
+    teleportBtn.TextSize = 16
     teleportBtn.Parent = frame
 
     -- Botão para Spawn Principal
     local spawnBtn = Instance.new("TextButton")
     spawnBtn.Text = "Teleportar para Spawn"
-    spawnBtn.Size = UDim2.new(0.7, 0, 0, 26)
-    spawnBtn.Position = UDim2.new(0.15, 0, 0, 130)
+    spawnBtn.Size = UDim2.new(0.7, 0, 0, 24)
+    spawnBtn.Position = UDim2.new(0.15, 0, 0, 126)
     spawnBtn.BackgroundColor3 = Color3.fromRGB(120, 90, 190)
     spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     spawnBtn.Font = Enum.Font.GothamBold
-    spawnBtn.TextSize = 14
+    spawnBtn.TextSize = 13
     spawnBtn.Parent = frame
 
     -- Botão Noclip
     local noclipBtn = Instance.new("TextButton")
     noclipBtn.Text = "Noclip: DESLIGADO (G)"
-    noclipBtn.Size = UDim2.new(0.7, 0, 0, 26)
-    noclipBtn.Position = UDim2.new(0.15, 0, 0, 160)
+    noclipBtn.Size = UDim2.new(0.7, 0, 0, 24)
+    noclipBtn.Position = UDim2.new(0.15, 0, 0, 153)
     noclipBtn.BackgroundColor3 = Color3.fromRGB(180, 80, 80)
     noclipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     noclipBtn.Font = Enum.Font.GothamBold
-    noclipBtn.TextSize = 14
+    noclipBtn.TextSize = 13
     noclipBtn.Parent = frame
+
+    -- Botão Pegar Objetos
+    local grabBtn = Instance.new("TextButton")
+    grabBtn.Text = "Pegar Objetos: DESLIGADO (H)"
+    grabBtn.Size = UDim2.new(0.7, 0, 0, 24)
+    grabBtn.Position = UDim2.new(0.15, 0, 0, 180)
+    grabBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 180)
+    grabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    grabBtn.Font = Enum.Font.GothamBold
+    grabBtn.TextSize = 13
+    grabBtn.Parent = frame
 
     -- Atualiza destino
     local function updateDestination()
@@ -145,25 +160,34 @@ local function createTeleportGUI()
         updateDestination()
         _G.TeleportPro_TryTeleport(teleportDestination)
     end)
+    
     spawnBtn.MouseButton1Click:Connect(function()
         local spawnPos = getSpawnPosition()
         _G.TeleportPro_TryTeleport(spawnPos)
     end)
+    
     noclipBtn.MouseButton1Click:Connect(function()
         isNoclipActive = not isNoclipActive
+        toggleNoclip(isNoclipActive)
         noclipBtn.Text = "Noclip: " .. (isNoclipActive and "LIGADO" or "DESLIGADO") .. " (G)"
         noclipBtn.BackgroundColor3 = isNoclipActive and Color3.fromRGB(100, 210, 100) or Color3.fromRGB(180, 80, 80)
     end)
+    
+    grabBtn.MouseButton1Click:Connect(function()
+        isGrabbing = not isGrabbing
+        toggleGrabObjects(isGrabbing)
+        grabBtn.Text = "Pegar Objetos: " .. (isGrabbing and "LIGADO" or "DESLIGADO") .. " (H)"
+        grabBtn.BackgroundColor3 = isGrabbing and Color3.fromRGB(100, 100, 210) or Color3.fromRGB(80, 80, 180)
+    end)
 end
 
--- Noclip Melhorado (Método mais discreto)
+-- Noclip Melhorado
 local function toggleNoclip(state)
     if not localPlayer.Character then return end
     
     if state then
         if noclipConnection then noclipConnection:Disconnect() end
         
-        -- Método mais seguro: tornar partes não colidíveis
         noclipConnection = RunService.Stepped:Connect(function()
             if localPlayer.Character then
                 for _, part in pairs(localPlayer.Character:GetDescendants()) do
@@ -178,7 +202,6 @@ local function toggleNoclip(state)
             noclipConnection:Disconnect()
             noclipConnection = nil
             
-            -- Restaurar colisão quando desativado
             if localPlayer.Character then
                 for _, part in pairs(localPlayer.Character:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -186,6 +209,87 @@ local function toggleNoclip(state)
                     end
                 end
             end
+        end
+    end
+end
+
+-- Função para pegar objetos através de paredes
+local function toggleGrabObjects(state)
+    if state then
+        if grabConnection then grabConnection:Disconnect() end
+        
+        grabConnection = RunService.Heartbeat:Connect(function()
+            if not localPlayer.Character then return end
+            
+            local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if not humanoid then return end
+            
+            -- Verifica se o jogador está tentando pegar algo
+            if humanoid:GetState() == Enum.HumanoidStateType.PickingUp then
+                -- Encontra objetos próximos, ignorando paredes
+                local rootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not rootPart then return end
+                
+                local maxDistance = 20
+                local closestObject = nil
+                local closestDistance = maxDistance
+                
+                for _, obj in pairs(Workspace:GetChildren()) do
+                    -- Verifica se é um objeto que pode ser pego (ajuste conforme o jogo)
+                    if obj:IsA("BasePart") and obj.Name:lower():find("item") or obj:FindFirstChild("CanPickUp") then
+                        local distance = (rootPart.Position - obj.Position).Magnitude
+                        if distance < closestDistance then
+                            closestDistance = distance
+                            closestObject = obj
+                        end
+                    end
+                end
+                
+                -- Se encontrou um objeto, "pega" ele
+                if closestObject and not grabbedObject then
+                    grabbedObject = closestObject
+                    
+                    -- Simula o processo de pegar o objeto
+                    local originalPosition = closestObject.Position
+                    local originalParent = closestObject.Parent
+                    local originalCanCollide = closestObject.CanCollide
+                    
+                    -- Torna o objeto não colidível e move para perto do jogador
+                    closestObject.CanCollide = false
+                    
+                    -- Conecta para manter o objeto próximo ao jogador
+                    local followConnection
+                    followConnection = RunService.Heartbeat:Connect(function()
+                        if grabbedObject and grabbedObject.Parent and localPlayer.Character and rootPart then
+                            -- Move suavemente o objeto para a frente do jogador
+                            local targetPosition = rootPart.Position + (rootPart.CFrame.LookVector * 4) + Vector3.new(0, -1, 0)
+                            grabbedObject.Position = targetPosition
+                        else
+                            followConnection:Disconnect()
+                        end
+                    end)
+                    
+                    -- Soltar objeto após 10 segundos ou se desativar a função
+                    delay(10, function()
+                        if grabbedObject then
+                            grabbedObject.CanCollide = originalCanCollide
+                            grabbedObject = nil
+                            followConnection:Disconnect()
+                        end
+                    end)
+                end
+            end
+        end)
+    else
+        if grabConnection then
+            grabConnection:Disconnect()
+            grabConnection = nil
+        end
+        
+        -- Restaurar objeto segurado se existir
+        if grabbedObject then
+            grabbedObject.CanCollide = true
+            grabbedObject = nil
         end
     end
 end
@@ -231,6 +335,7 @@ end
 -- Hotkeys
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
+    
     if input.KeyCode == teleportKey then
         _G.TeleportPro_TryTeleport(teleportDestination)
     elseif input.KeyCode == noclipKey then
@@ -248,15 +353,32 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 end
             end
         end
+    elseif input.KeyCode == grabKey then
+        isGrabbing = not isGrabbing
+        toggleGrabObjects(isGrabbing)
+        
+        local panel = localPlayer.PlayerGui:FindFirstChild("TeleportPanel")
+        if panel then
+            local frame = panel:FindFirstChild("Frame")
+            if frame then
+                local grabBtn = frame:FindFirstChildWhichIsA("TextButton", true)
+                if grabBtn and grabBtn.Text:find("Pegar Objetos") then
+                    grabBtn.Text = "Pegar Objetos: " .. (isGrabbing and "LIGADO" or "DESLIGADO") .. " (H)"
+                    grabBtn.BackgroundColor3 = isGrabbing and Color3.fromRGB(100, 100, 210) or Color3.fromRGB(80, 80, 180)
+                end
+            end
+        end
     end
 end)
 
 -- Inicialização
-task.wait(1) -- Espera o jogador carregar
+task.wait(2) -- Espera o jogador carregar completamente
 createTeleportGUI()
+
 StarterGui:SetCore("SendNotification", {
     Title = "Teleport Pro",
-    Text = "Script carregado! Use o painel ou F (teleporte) / G (noclip).",
+    Text = "Script carregado! Use F (teleporte), G (noclip), H (pegar objetos)",
     Duration = 7
 })
-print("Teleport Pro carregado! Use o painel ou F / G para noclip.")
+
+print("Teleport Pro carregado! Use F, G, H para as funcionalidades.")
