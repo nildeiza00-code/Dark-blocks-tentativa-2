@@ -1,4 +1,4 @@
--- Teleporte disfarçado de movimento (para anti-cheat tipo "shake")
+-- Teleporte avançado
 -- Use em executores como Delta, Synapse, Arceus X
 
 local player = game.Players.LocalPlayer
@@ -8,16 +8,22 @@ local pathLength = 12 -- distância total do "teleporte"
 local stepCount = 10 -- quantos passos curtos
 local stepDelay = 0.07 -- segundos entre passos
 
-local function isSafe(pos, char)
-    local ray = Ray.new(pos + Vector3.new(0, 3, 0), Vector3.new(0, -6, 0))
-    local part, pos2 = workspace:FindPartOnRay(ray, char)
-    return part and part.CanCollide and pos2 and true or false
+-- Função para desativar a colisão de todas as partes do personagem
+local function disableCollision(character, state)
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not state
+        end
+    end
 end
 
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
+    -- Desativa a colisão antes de começar o movimento
+    disableCollision(char, false)
 
     -- Calcula direção para frente
     local dir = root.CFrame.lookVector
@@ -26,15 +32,14 @@ local function SmoothTeleport()
         local step = dir * (pathLength / stepCount)
         local newPos = root.Position + step
 
-        -- Checa se é seguro
-        if not isSafe(newPos, char) then break end
+        -- Mova o personagem diretamente sem checar colisões, já que elas estão desativadas
+        root.CFrame = CFrame.new(newPos)
 
-        -- Move suavemente (Tween)
-        local tween = TweenService:Create(root, TweenInfo.new(stepDelay, Enum.EasingStyle.Linear), {CFrame = CFrame.new(newPos)})
-        tween:Play()
-        tween.Completed:Wait()
-        task.wait(0.01)
+        task.wait(0.01) -- Pequeno delay para simular movimento
     end
+
+    -- Reativa a colisão após o teleporte
+    disableCollision(char, true)
 end
 
 -- GUI
