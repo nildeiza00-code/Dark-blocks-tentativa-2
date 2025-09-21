@@ -1,20 +1,18 @@
--- Teleporte avançado com bypass de anti-cheat
-local player = game.Players.LocalPlayer
+-- Teleporte avançado com bypass de anti-cheat - Versão Delta
+local player = game:GetService("Players").LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local PhysicsService = game:GetService("PhysicsService")
 
 -- Configurações do teleporte
 local pathLength = 12
-local stepCount = 10
-local stepDelay = 0.07
 local teleportCooldown = 1.5
 
 -- Estado do teleporte
 local isTeleporting = false
 local lastTeleportTime = 0
 
--- Criar grupo de colisão personalizado se não existir
+-- Criar grupo de colisão personalizado
 if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
     PhysicsService:CreateCollisionGroup("TeleportBypass")
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
@@ -25,34 +23,24 @@ local function canTeleport()
     return (tick() - lastTeleportTime) > teleportCooldown and not isTeleporting
 end
 
--- Função: ligar/desligar colisão de forma avançada
-local function disableCollision(character, state)
-    if not character then return end
+-- Função para gerenciar colisões
+local function manageCollisions(char, disable)
+    if not char then return end
     
-    for _, part in pairs(character:GetDescendants()) do
+    for _, part in pairs(char:GetDescendants()) do
         if part:IsA("BasePart") then
-            if state then
-                -- Modo: IGNORAR COLISÕES
+            if disable then
                 part.CanCollide = false
-                part.CanTouch = false
-                part.CanQuery = false
                 PhysicsService:SetPartCollisionGroup(part, "TeleportBypass")
-                
-                -- Zera velocidades para evitar detecção
-                part.Velocity = Vector3.new(0, 0, 0)
-                part.RotVelocity = Vector3.new(0, 0, 0)
             else
-                -- Modo: VOLTAR AO NORMAL
                 part.CanCollide = true
-                part.CanTouch = true
-                part.CanQuery = true
                 PhysicsService:SetPartCollisionGroup(part, "Default")
             end
         end
     end
 end
 
--- Função: teleporte seguro com bypass de anti-cheat
+-- Função de teleporte
 local function SmoothTeleport()
     if not canTeleport() then return end
     
@@ -66,62 +54,31 @@ local function SmoothTeleport()
     end
     
     local root = char:FindFirstChild("HumanoidRootPart")
-    local humanoid = char:FindFirstChild("Humanoid")
-    
-    if not root or not humanoid then 
+    if not root then 
         isTeleporting = false
         return 
     end
 
-    -- Pequena pausa aleatória antes de começar
-    task.wait(math.random(10, 30) / 100)
+    -- Desativa colisão
+    manageCollisions(char, true)
 
-    -- Desativa colisão de forma avançada
-    disableCollision(char, true)
+    -- Calcula direção
+    local dir = root.CFrame.LookVector
+    local targetPos = root.Position + (dir * pathLength)
 
-    -- Calcula direção com pequena variação aleatória
-    local randomAngle = math.rad(math.random(-5, 5))
-    local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
-    local targetPos = root.Position + dir * pathLength
+    -- Move diretamente para a posição (mais eficaz no Delta)
+    root.CFrame = CFrame.new(targetPos)
 
-    -- Movimento em etapas curtas
-    local steps = math.random(8, 12)
-    
-    for i = 1, steps do
-        if not root or not root.Parent then break end
-        
-        -- Calcula cada passo com pequena variação
-        local progress = i / steps
-        local currentStep = dir * (pathLength / steps) * (0.9 + math.random() * 0.2)
-        local newPos = root.Position + currentStep
-        
-        -- Move diretamente com rotação sutil
-        root.CFrame = CFrame.new(newPos) * CFrame.Angles(
-            math.rad(math.random(-2, 2)),
-            math.rad(math.random(-3, 3)),
-            math.rad(math.random(-2, 2))
-        )
-        
-        -- Delay variável entre passos
-        task.wait(stepDelay * (0.8 + math.random() * 0.4))
-    end
-
-    -- Restaura colisão gradualmente
+    -- Pequena pausa antes de restaurar colisões
     task.wait(0.1)
-    disableCollision(char, false)
-    
-    -- Garante que todas as velocidades estão zeradas
-    if root and root.Parent then
-        root.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    end
+    manageCollisions(char, false)
     
     isTeleporting = false
 end
 
--- Remover GUI existente de forma segura
-local function safeRemoveGUI()
+-- Função para criar a GUI (simplificada para o Delta)
+local function createSimpleGUI()
+    -- Remove GUI existente
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         local existingGUI = playerGui:FindFirstChild("TeleGUI")
@@ -129,83 +86,38 @@ local function safeRemoveGUI()
             existingGUI:Destroy()
         end
     end
-end
-
--- Criar a GUI de forma segura
-local function createGUI()
-    safeRemoveGUI()
     
-    -- Esperar pelo PlayerGui (importante para o Delta)
-    local playerGui = player:WaitForChild("PlayerGui")
-    
+    -- Cria a GUI
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
-    ScreenGui.Parent = playerGui
+    ScreenGui.Parent = player.PlayerGui
+    ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    ScreenGui.ResetOnSpawn = false  -- Importante: não resetar ao respawnar
 
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 180, 0, 60)
-    Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
-    Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
-    Frame.BorderSizePixel = 0
+    Frame.Size = UDim2.new(0, 160, 0, 50)
+    Frame.Position = UDim2.new(0.5, -80, 0.85, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    Frame.BackgroundTransparency = 0.3
+    Frame.BorderSizePixel = 1
+    Frame.BorderColor3 = Color3.fromRGB(80, 80, 90)
     Frame.AnchorPoint = Vector2.new(0.5, 0)
     Frame.Parent = ScreenGui
-    Frame.Active = true
-    Frame.Draggable = false
 
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1, -24, 1, -24)
-    Button.Position = UDim2.new(0, 12, 0, 12)
-    Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
-    Button.TextColor3 = Color3.fromRGB(230, 255, 230)
+    Button.Size = UDim2.new(1, -20, 1, -20)
+    Button.Position = UDim2.new(0, 10, 0, 10)
+    Button.BackgroundColor3 = Color3.fromRGB(70, 100, 70)
+    Button.BackgroundTransparency = 0.2
+    Button.TextColor3 = Color3.fromRGB(220, 255, 220)
     Button.Font = Enum.Font.GothamBold
-    Button.TextSize = 22
+    Button.TextSize = 18
     Button.Text = "TELEPORTAR"
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- Conectar o clique do botão (versão simplificada para o Delta)
-    Button.MouseButton1Click:Connect(function()
-        if canTeleport() then
-            SmoothTeleport()
-        end
-    end)
-
-    -- Sistema de arrastar
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    Frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = Frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    Frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            Frame.Position = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + delta.X, 
-                startPos.Y.Scale, 
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
+    -- Conexão direta do botão
+    Button.MouseButton1Click:Connect(SmoothTeleport)
 
     return ScreenGui
 end
@@ -218,30 +130,31 @@ UIS.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- Inicialização melhorada para o Delta
-local function initialize()
-    -- Esperar pelo jogador estar pronto
-    if not player.Character then
-        player.CharacterAdded:Wait()
+-- Inicialização otimizada para o Delta
+local success, errorMsg = pcall(function()
+    -- Espera pelo PlayerGui
+    while not player:FindFirstChild("PlayerGui") do
+        task.wait(0.1)
     end
     
-    -- Esperar um pouco mais para garantir que tudo está carregado
-    task.wait(2)
+    -- Cria a GUI
+    createSimpleGUI()
+    print("GUI do Teleporte criada com sucesso!")
+end)
+
+if not success then
+    warn("Erro ao criar GUI: " .. tostring(errorMsg))
     
-    -- Criar a GUI
-    createGUI()
-    
-    print("GUI do Teleporte carregada com sucesso!")
+    -- Tenta novamente após 3 segundos
+    task.wait(3)
+    createSimpleGUI()
 end
 
--- Iniciar
-initialize()
-
--- Sistema de recriação se a GUI for removida
+-- Sistema de recriação automática
 RunService.Heartbeat:Connect(function()
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui and not playerGui:FindFirstChild("TeleGUI") then
         task.wait(1)
-        createGUI()
+        createSimpleGUI()
     end
 end)
