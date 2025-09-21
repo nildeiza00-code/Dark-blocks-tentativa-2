@@ -2,7 +2,6 @@
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local PhysicsService = game:GetService("PhysicsService")
-local RunService = game:GetService("RunService")
 
 -- Configurações do teleporte
 local pathLength = 12
@@ -74,6 +73,7 @@ end
 -- GUI
 local function createGUI()
     local playerGui = player:WaitForChild("PlayerGui")
+
     -- Remove GUI antiga
     if playerGui:FindFirstChild("TeleGUI") then
         playerGui:FindFirstChild("TeleGUI"):Destroy()
@@ -105,7 +105,7 @@ local function createGUI()
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- 🔥 Conexão do botão garantida
+    -- 🔥 Conexão profissional do botão
     Button.MouseButton1Click:Connect(SmoothTeleport)
 
     -- Sistema de arrastar
