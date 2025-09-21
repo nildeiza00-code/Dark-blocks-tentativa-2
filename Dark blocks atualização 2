@@ -1,53 +1,97 @@
--- Teleporte avançado com GUI
--- Funciona em executores: Delta, Synapse, Arceus X
-
+-- Teleporte avançado com bypass de anti-cheat
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local PhysicsService = game:GetService("PhysicsService")
 
 -- Configurações do teleporte
-local pathLength = 12 -- distância total
-local stepCount = 10  -- "quantidade de passos" (ajusta a velocidade)
-local stepDelay = 0.07 -- tempo de cada passo
+local pathLength = 12
+local stepCount = 10
+local stepDelay = 0.07
 
--- Função: ligar/desligar colisão
+-- Criar grupo de colisão personalizado se não existir
+if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
+    PhysicsService:CreateCollisionGroup("TeleportBypass")
+    PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
+end
+
+-- Função: ligar/desligar colisão de forma avançada
 local function disableCollision(character, state)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
-            part.CanCollide = not state
+            if state then
+                -- Modo: IGNORAR COLISÕES
+                part.CanCollide = false
+                part.CanTouch = false
+                part.CanQuery = false
+                PhysicsService:SetPartCollisionGroup(part, "TeleportBypass")
+                
+                -- Zera velocidades para evitar detecção
+                part.Velocity = Vector3.new(0, 0, 0)
+                part.RotVelocity = Vector3.new(0, 0, 0)
+            else
+                -- Modo: VOLTAR AO NORMAL
+                part.CanCollide = true
+                part.CanTouch = true
+                part.CanQuery = true
+                PhysicsService:SetPartCollisionGroup(part, "Default")
+            end
         end
     end
 end
 
--- Função: teleporte suave
+-- Função: teleporte seguro com bypass de anti-cheat
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Desativa colisão
-    disableCollision(char, false)
+    -- Pequena pausa aleatória antes de começar
+    task.wait(math.random(10, 30) / 100)
 
-    -- Calcula posição final
-    local dir = root.CFrame.LookVector
+    -- Desativa colisão de forma avançada
+    disableCollision(char, true)
+
+    -- Calcula direção com pequena variação aleatória
+    local randomAngle = math.rad(math.random(-5, 5))
+    local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
     local targetPos = root.Position + dir * pathLength
 
-    -- Cria movimento Tween
-    local tweenInfo = TweenInfo.new(
-        stepCount * stepDelay, -- duração total
-        Enum.EasingStyle.Linear,
-        Enum.EasingDirection.Out
-    )
-    local tweenGoal = {CFrame = CFrame.new(targetPos)}
-    local tween = TweenService:Create(root, tweenInfo, tweenGoal)
-    tween:Play()
-    tween.Completed:Wait()
+    -- Movimento em etapas curtas (substitui o TweenService)
+    local steps = math.random(8, 12)
+    
+    for i = 1, steps do
+        if not root or not root.Parent then break end
+        
+        -- Calcula cada passo com pequena variação
+        local progress = i / steps
+        local currentStep = dir * (pathLength / steps) * (0.9 + math.random() * 0.2)
+        local newPos = root.Position + currentStep
+        
+        -- Move diretamente com rotação sutil
+        root.CFrame = CFrame.new(newPos) * CFrame.Angles(
+            math.rad(math.random(-2, 2)),
+            math.rad(math.random(-3, 3)),
+            math.rad(math.random(-2, 2))
+        )
+        
+        -- Delay variável entre passos
+        task.wait(stepDelay * (0.8 + math.random() * 0.4))
+    end
 
-    -- Reativa colisão
-    disableCollision(char, true)
+    -- Restaura colisão gradualmente
+    task.wait(0.1)
+    disableCollision(char, false)
+    
+    -- Garante que todas as velocidades estão zeradas
+    if root and root.Parent then
+        root.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
 end
 
--- CORREÇÃO: Remover GUI existente de forma segura
+-- GUI (painel e botão) - Mantida igual
 local function safeRemoveGUI()
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
@@ -58,7 +102,6 @@ local function safeRemoveGUI()
     end
 end
 
--- CORREÇÃO: Criar a GUI de forma segura
 local function createGUI()
     safeRemoveGUI()
     
@@ -88,15 +131,13 @@ local function createGUI()
     Button.TextSize = 22
     Button.Text = "TELEPORTAR"
     Button.Parent = Frame
-    Button.AutoButtonColor = true -- CORREÇÃO: Garantir que é clicável
+    Button.AutoButtonColor = true
 
-    -- CORREÇÃO: Conectar o clique do botão DE FORMA SEGURA
+    -- Conexão segura do botão
     local connection
     connection = Button.MouseButton1Click:Connect(function()
-        -- Desconectar temporariamente para evitar múltiplos cliques
         connection:Disconnect()
         SmoothTeleport()
-        -- Reconectar após execução
         task.wait(0.5)
         connection = Button.MouseButton1Click:Connect(function()
             connection:Disconnect()
@@ -106,7 +147,7 @@ local function createGUI()
         end)
     end)
 
-    -- CORREÇÃO: Sistema de arrastar melhorado
+    -- Sistema de arrastar
     local dragging = false
     local dragInput, dragStart, startPos
 
@@ -148,7 +189,7 @@ local function createGUI()
     return ScreenGui
 end
 
--- CORREÇÃO: Hotkey T com verificação de segurança
+-- Hotkey T
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
@@ -156,17 +197,17 @@ UIS.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- CORREÇÃO: Criar a GUI quando o player estiver pronto
+-- Inicialização da GUI
 if player.Character then
     createGUI()
 else
     player.CharacterAdded:Connect(function()
-        task.wait(1) -- Esperar o personagem carregar completamente
+        task.wait(1)
         createGUI()
     end)
 end
 
--- CORREÇÃO: Recriar GUI se o PlayerGui for resetado
+-- Recriar GUI se necessário
 player.PlayerGui.ChildAdded:Connect(function(child)
     if child:IsA("ScreenGui") and child.Name ~= "TeleGUI" then
         task.wait(1)
