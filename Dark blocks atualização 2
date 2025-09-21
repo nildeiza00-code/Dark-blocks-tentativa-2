@@ -52,7 +52,7 @@ NoclipButton.Parent = Frame
 -- Variável para controlar o estado do noclip
 local noclipEnabled = false
 
--- Função principal do teleporte (corrigida)
+-- Função principal do teleporte (versão nova com BodyPosition)
 local function teleportar(destino)
     local personagem = game.Players.LocalPlayer.Character
     if not personagem then
@@ -60,25 +60,18 @@ local function teleportar(destino)
         return
     end
 
-    -- Desativa a colisão de todas as partes do personagem antes de teleportar
-    for _, part in pairs(personagem:GetDescendants()) do
-        if part:IsA("BasePart") and part.CanCollide then
-            part.CanCollide = false
-        end
-    end
+    local humanoideRootPart = personagem:FindFirstChild("HumanoidRootPart")
+    if not humanoideRootPart then return end
 
-    -- Realiza o teleporte
-    personagem:SetPrimaryPartCFrame(CFrame.new(destino))
+    -- Cria o objeto BodyPosition para mover o personagem
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.Position = destino
+    bodyPosition.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    bodyPosition.Parent = humanoideRootPart
 
-    -- Espera um pouco para o servidor processar a nova posição
-    task.wait(0.1)
-
-    -- Reativa a colisão de todas as partes do personagem
-    for _, part in pairs(personagem:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = true
-        end
-    end
+    -- Espera um tempo muito curto e remove o BodyPosition
+    task.wait(0.01)
+    bodyPosition:Destroy()
 end
 
 -- Função para ativar/desativar o noclip
