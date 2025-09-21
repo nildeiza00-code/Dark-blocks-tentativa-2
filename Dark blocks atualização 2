@@ -1,123 +1,117 @@
--- SCRIPT FUNCIONAL COM TELEPORTE E NOCLIP (todas as partes do personagem)
+-- CÓDIGO PARA SER USADO NO EXECUTOR
 
-local player = game.Players.LocalPlayer
-if not player then return end
-local playerGui = player:WaitForChild("PlayerGui")
-
--- Remove GUI antiga caso exista
-if playerGui:FindFirstChild("TeleportGUI") then
-    playerGui.TeleportGUI:Destroy()
+-- Verifica se a GUI já existe para evitar criar múltiplas
+if not pcall(function() return getgenv().TeleportGUI end) then
+    getgenv().TeleportGUI = Instance.new("ScreenGui")
+    getgenv().TeleportGUI.Name = "TeleportGUI"
+    getgenv().TeleportGUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Cria GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TeleportGUI"
+local ScreenGui = getgenv().TeleportGUI
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = playerGui
 
--- Frame principal
+-- Cria o Frame principal do painel
 local Frame = Instance.new("Frame")
 Frame.Name = "TeleportFrame"
 Frame.Size = UDim2.new(0, 200, 0, 150)
 Frame.Position = UDim2.new(0.5, -100, 0.5, -75)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BorderColor3 = Color3.fromRGB(50, 50, 50)
+Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
 Frame.BorderSizePixel = 2
 Frame.Draggable = true
 Frame.Parent = ScreenGui
 
--- Botão Teleporte
+-- Cria o botão de teleporte
 local TeleportButton = Instance.new("TextButton")
 TeleportButton.Name = "TeleportButton"
 TeleportButton.Size = UDim2.new(0, 150, 0, 40)
 TeleportButton.Position = UDim2.new(0.5, -75, 0, 15)
-TeleportButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-TeleportButton.BorderColor3 = Color3.fromRGB(30, 30, 30)
+TeleportButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+TeleportButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
 TeleportButton.BorderSizePixel = 1
 TeleportButton.Text = "Teleportar"
-TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeleportButton.TextColor3 = Color3.new(1, 1, 1)
 TeleportButton.Font = Enum.Font.SourceSansBold
 TeleportButton.TextSize = 18
 TeleportButton.Parent = Frame
 
--- Botão Noclip
+-- Cria o botão de atravessar parede (Noclip)
 local NoclipButton = Instance.new("TextButton")
 NoclipButton.Name = "NoclipButton"
 NoclipButton.Size = UDim2.new(0, 150, 0, 40)
 NoclipButton.Position = UDim2.new(0.5, -75, 0, 75)
-NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-NoclipButton.BorderColor3 = Color3.fromRGB(30, 30, 30)
+NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+NoclipButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
 NoclipButton.BorderSizePixel = 1
 NoclipButton.Text = "Atravessar Parede: OFF"
-NoclipButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoclipButton.TextColor3 = Color3.new(1, 1, 1)
 NoclipButton.Font = Enum.Font.SourceSansBold
 NoclipButton.TextSize = 18
 NoclipButton.Parent = Frame
 
--- =======================
--- VARIÁVEIS
--- =======================
+-- Variável para controlar o estado do noclip
 local noclipEnabled = false
 
--- =======================
--- FUNÇÃO DE TELEPORTE
--- =======================
+-- Função principal do teleporte (corrigida)
 local function teleportar(destino)
-    local personagem = player.Character
-    if not personagem or not personagem.PrimaryPart then
-        warn("Personagem não encontrado ou PrimaryPart não definido.")
+    local personagem = game.Players.LocalPlayer.Character
+    if not personagem then
+        warn("Personagem não encontrado.")
         return
     end
 
-    local origem = personagem.PrimaryPart.Position
-    local distancia = (destino - origem).Magnitude
-    local velocidade = 10 
-    local passos = math.ceil(distancia / velocidade)
+    -- Desativa a colisão de todas as partes do personagem antes de teleportar
+    for _, part in pairs(personagem:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide then
+            part.CanCollide = false
+        end
+    end
 
-    for i = 1, passos do
-        local alpha = i / passos
-        local novaPosicao = origem:Lerp(destino, alpha)
-        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
-        task.wait()
+    -- Realiza o teleporte
+    personagem:SetPrimaryPartCFrame(CFrame.new(destino))
+
+    -- Espera um pouco para o servidor processar a nova posição
+    task.wait(0.1)
+
+    -- Reativa a colisão de todas as partes do personagem
+    for _, part in pairs(personagem:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
     end
 end
 
--- =======================
--- FUNÇÃO DE NOCLIP (nova versão)
--- =======================
+-- Função para ativar/desativar o noclip
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
     
-    local character = player.Character
+    local character = game.Players.LocalPlayer.Character
     if not character then return end
 
     if noclipEnabled then
-        -- Desativa a colisão de cada parte do personagem
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
             end
         end
         NoclipButton.Text = "Atravessar Parede: ON"
-        NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.5, 0.2)
     else
-        -- Reativa a colisão de cada parte do personagem
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
             end
         end
         NoclipButton.Text = "Atravessar Parede: OFF"
-        NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        NoclipButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
     end
 end
 
--- =======================
--- EVENTOS DOS BOTÕES
--- =======================
+-- Eventos de clique
 TeleportButton.MouseButton1Click:Connect(function()
-    local mouse = player:GetMouse()
-    local destino = mouse.Hit and mouse.Hit.p
+    local mouse = game.Players.LocalPlayer:GetMouse()
+    local destino = mouse.Hit.p
+    
     if destino then
         teleportar(destino)
     end
