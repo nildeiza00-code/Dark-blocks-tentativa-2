@@ -1,6 +1,7 @@
 -- Teleporte avançado com bypass de anti-cheat
-local player = game.Players.LocalPlayer
+local player = game.LocalPlayer
 local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local PhysicsService = game:GetService("PhysicsService")
 
 -- Configurações do teleporte
@@ -14,18 +15,22 @@ if not PhysicsService:GetCollisionGroupName("TeleportBypass") then
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
 end
 
--- Função: ligar/desligar colisão
+-- Função: ligar/desligar colisão de forma avançada
 local function disableCollision(character, state)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             if state then
+                -- Modo: IGNORAR COLISÕES
                 part.CanCollide = false
                 part.CanTouch = false
                 part.CanQuery = false
                 PhysicsService:SetPartCollisionGroup(part, "TeleportBypass")
-                part.Velocity = Vector3.new(0,0,0)
-                part.RotVelocity = Vector3.new(0,0,0)
+                
+                -- Zera velocidades para evitar detecção
+                part.Velocity = Vector3.new(0, 0, 0)
+                part.RotVelocity = Vector3.new(0, 0, 0)
             else
+                -- Modo: VOLTAR AO NORMAL
                 part.CanCollide = true
                 part.CanTouch = true
                 part.CanQuery = true
@@ -35,113 +40,114 @@ local function disableCollision(character, state)
     end
 end
 
--- Função: teleporte seguro
+-- Função: teleporte seguro com bypass de anti-cheat
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    task.wait(math.random(10,30)/100)
-    disableCollision(char,true)
+    -- Pequena pausa aleatória antes de começar
+    task.wait(math.random(10, 30) / 100)
 
-    local randomAngle = math.rad(math.random(-5,5))
-    local dir = (root.CFrame * CFrame.Angles(0,randomAngle,0)).LookVector
-    local steps = math.random(8,12)
+    -- Desativa colisão de forma avançada
+    disableCollision(char, true)
 
-    for i=1,steps do
+    -- Calcula direção com pequena variação aleatória
+    local randomAngle = math.rad(math.random(-5, 5))
+    local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
+    local targetPos = root.Position + dir * pathLength
+
+    -- Movimento em etapas curtas (substitui o TweenService)
+    local steps = math.random(8, 12)
+    
+    for i = 1, steps do
         if not root or not root.Parent then break end
-        local currentStep = dir*(pathLength/steps)*(0.9 + math.random()*0.2)
+        
+        -- Calcula cada passo com pequena variação
+        local progress = i / steps
+        local currentStep = dir * (pathLength / steps) * (0.9 + math.random() * 0.2)
         local newPos = root.Position + currentStep
+        
+        -- Move diretamente com rotação sutil
         root.CFrame = CFrame.new(newPos) * CFrame.Angles(
-            math.rad(math.random(-2,2)),
-            math.rad(math.random(-3,3)),
-            math.rad(math.random(-2,2))
+            math.rad(math.random(-2, 2)),
+            math.rad(math.random(-3, 3)),
+            math.rad(math.random(-2, 2))
         )
-        task.wait(stepDelay*(0.8 + math.random()*0.4))
+        
+        -- Delay variável entre passos
+        task.wait(stepDelay * (0.8 + math.random() * 0.4))
     end
 
+    -- Restaura colisão gradualmente
     task.wait(0.1)
-    disableCollision(char,false)
-
+    disableCollision(char, false)
+    
+    -- Garante que todas as velocidades estão zeradas
     if root and root.Parent then
-        root.Velocity = Vector3.new(0,0,0)
-        root.AssemblyLinearVelocity = Vector3.new(0,0,0)
-        root.AssemblyAngularVelocity = Vector3.new(0,0,0)
+        root.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
 end
 
--- GUI
-local function createGUI()
-    local playerGui = player:WaitForChild("PlayerGui")
-
-    -- Remove GUI antiga
-    if playerGui:FindFirstChild("TeleGUI") then
-        playerGui:FindFirstChild("TeleGUI"):Destroy()
+-- GUI (painel e botão) - Corrigido para garantir funcionalidade
+local function safeRemoveGUI()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local existingGUI = playerGui:FindFirstChild("TeleGUI")
+        if existingGUI then
+            existingGUI:Destroy()
+        end
     end
+end
 
+local function createGUI()
+    safeRemoveGUI()
+    
+    local playerGui = player:WaitForChild("PlayerGui")
+    
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TeleGUI"
-    ScreenGui.ResetOnSpawn = false -- garante aparecer após respawn
     ScreenGui.Parent = playerGui
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0,180,0,60)
-    Frame.Position = UDim2.new(0.5,-90,0.8,0)
-    Frame.BackgroundColor3 = Color3.fromRGB(33,33,40)
+    Frame.Size = UDim2.new(0, 180, 0, 60)
+    Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(33, 33, 40)
     Frame.BorderSizePixel = 0
-    Frame.AnchorPoint = Vector2.new(0.5,0)
+    Frame.AnchorPoint = Vector2.new(0.5, 0)
     Frame.Parent = ScreenGui
     Frame.Active = true
+    Frame.Draggable = true -- Habilitado para arrastar
 
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1,-24,1,-24)
-    Button.Position = UDim2.new(0,12,0,12)
-    Button.BackgroundColor3 = Color3.fromRGB(80,120,80)
-    Button.TextColor3 = Color3.fromRGB(230,255,230)
+    Button.Size = UDim2.new(1, -24, 1, -24)
+    Button.Position = UDim2.new(0, 12, 0, 12)
+    Button.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
+    Button.TextColor3 = Color3.fromRGB(230, 255, 230)
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 22
     Button.Text = "TELEPORTAR"
     Button.Parent = Frame
     Button.AutoButtonColor = true
 
-    -- 🔥 Conexão profissional do botão
+    -- Conexão simples e direta do botão com a função
     Button.MouseButton1Click:Connect(SmoothTeleport)
 
-    -- Sistema de arrastar
-    local dragging=false
-    local dragInput,dragStart,startPos
-
-    Frame.InputBegan:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1 then
-            dragging=true
-            dragStart=input.Position
-            startPos=Frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState==Enum.UserInputState.End then dragging=false end
-            end)
-        end
-    end)
-    Frame.InputChanged:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseMovement then dragInput=input end
-    end)
-    UIS.InputChanged:Connect(function(input)
-        if input==dragInput and dragging then
-            local delta=input.Position - dragStart
-            Frame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
-        end
-    end)
+    return ScreenGui
 end
 
 -- Hotkey T
-UIS.InputBegan:Connect(function(input,processed)
+UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
-    if input.KeyCode==Enum.KeyCode.T then
+    if input.KeyCode == Enum.KeyCode.T then
         SmoothTeleport()
     end
 end)
 
--- Inicializa GUI
+-- Inicialização da GUI
 if player.Character then
     createGUI()
 else
@@ -151,9 +157,9 @@ else
     end)
 end
 
--- Garante recriação se outro GUI aparecer
+-- Recriar GUI se necessário
 player.PlayerGui.ChildAdded:Connect(function(child)
-    if child:IsA("ScreenGui") and child.Name~="TeleGUI" then
+    if child:IsA("ScreenGui") and child.Name ~= "TeleGUI" then
         task.wait(1)
         createGUI()
     end
