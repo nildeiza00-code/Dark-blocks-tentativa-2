@@ -1,4 +1,4 @@
--- SCRIPT FUNCIONAL COM TELEPORTE E NOCLIP
+-- SCRIPT FUNCIONAL COM TELEPORTE E NOCLIP (todas as partes do personagem)
 
 local player = game.Players.LocalPlayer
 if not player then return end
@@ -83,20 +83,30 @@ local function teleportar(destino)
 end
 
 -- =======================
--- FUNÇÃO DE NOCLIP (nova linha que você enviou)
+-- FUNÇÃO DE NOCLIP (nova versão)
 -- =======================
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
     
-    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
-    if not humanoid then return end
+    local character = player.Character
+    if not character then return end
 
     if noclipEnabled then
-        humanoid.PlatformStand = true
+        -- Desativa a colisão de cada parte do personagem
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
         NoclipButton.Text = "Atravessar Parede: ON"
         NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     else
-        humanoid.PlatformStand = false
+        -- Reativa a colisão de cada parte do personagem
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
         NoclipButton.Text = "Atravessar Parede: OFF"
         NoclipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     end
