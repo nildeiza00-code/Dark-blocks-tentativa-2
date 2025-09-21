@@ -1,4 +1,4 @@
--- Teleporte avançado com bypass de anti-cheat (lógica intacta)
+-- Teleporte avançado com bypass de anti-cheat
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local PhysicsService = game:GetService("PhysicsService")
@@ -13,7 +13,7 @@ if not pcall(function() return PhysicsService:GetCollisionGroupName("TeleportByp
     PhysicsService:CollisionGroupSetCollidable("TeleportBypass", "Default", false)
 end
 
--- Função de teleporte (mantida)
+-- Função: ligar/desligar colisão
 local function disableCollision(character, state)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
@@ -22,8 +22,8 @@ local function disableCollision(character, state)
                 part.CanTouch = false
                 part.CanQuery = false
                 PhysicsService:SetPartCollisionGroup(part, "TeleportBypass")
-                part.Velocity = Vector3.new(0, 0, 0)
-                part.RotVelocity = Vector3.new(0, 0, 0)
+                part.Velocity = Vector3.new(0,0,0)
+                part.RotVelocity = Vector3.new(0,0,0)
             else
                 part.CanCollide = true
                 part.CanTouch = true
@@ -34,32 +34,33 @@ local function disableCollision(character, state)
     end
 end
 
+-- Função de teleporte seguro
 local function SmoothTeleport()
     local char = player.Character or player.CharacterAdded:Wait()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    task.wait(math.random(10, 30)/100)
-    disableCollision(char, true)
+    task.wait(math.random(10,30)/100)
+    disableCollision(char,true)
 
     local randomAngle = math.rad(math.random(-5,5))
-    local dir = (root.CFrame * CFrame.Angles(0, randomAngle, 0)).LookVector
+    local dir = (root.CFrame * CFrame.Angles(0,randomAngle,0)).LookVector
     local steps = math.random(8,12)
 
     for i=1,steps do
         if not root or not root.Parent then break end
-        local currentStep = dir * (pathLength / steps) * (0.9 + math.random()*0.2)
+        local currentStep = dir * (pathLength/steps) * (0.9+math.random()*0.2)
         local newPos = root.Position + currentStep
         root.CFrame = CFrame.new(newPos) * CFrame.Angles(
             math.rad(math.random(-2,2)),
             math.rad(math.random(-3,3)),
             math.rad(math.random(-2,2))
         )
-        task.wait(stepDelay * (0.8 + math.random()*0.4))
+        task.wait(stepDelay * (0.8+math.random()*0.4))
     end
 
     task.wait(0.1)
-    disableCollision(char, false)
+    disableCollision(char,false)
     if root and root.Parent then
         root.Velocity = Vector3.new(0,0,0)
         root.AssemblyLinearVelocity = Vector3.new(0,0,0)
@@ -67,7 +68,7 @@ local function SmoothTeleport()
     end
 end
 
--- Criar GUI fixo, confiável
+-- Criar PlayerGui com painel fixo e botão funcional
 local function createGUI()
     local playerGui = player:WaitForChild("PlayerGui")
     if playerGui:FindFirstChild("TeleGUI") then
@@ -96,6 +97,7 @@ local function createGUI()
     button.Parent = frame
     button.AutoButtonColor = true
 
+    -- Conexão segura com teleporte
     button.MouseButton1Click:Connect(function()
         local success, err = pcall(SmoothTeleport)
         if not success then
@@ -104,13 +106,23 @@ local function createGUI()
     end)
 end
 
--- Inicializa GUI imediatamente
+-- Inicializa GUI
 createGUI()
 
--- Recria GUI caso seja removida
+-- Recriar GUI se for removida
 player.PlayerGui.ChildRemoved:Connect(function(child)
     if child.Name == "TeleGUI" then
         task.wait(0.3)
         createGUI()
+    end
+end)
+
+-- Hotkey T para teleporte
+UIS.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.T then
+        local success, err = pcall(SmoothTeleport)
+        if not success then
+            warn("Erro ao executar teleporte: "..tostring(err))
+        end
     end
 end)
