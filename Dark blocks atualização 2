@@ -1,49 +1,43 @@
---[[
-Script: Teleporte Curto Seguro com Painel (Roblox)
-Executor: Delta (funciona em Synapse, Arceus X etc.)
-Jogo: Roube um Brainrot
-Créditos: nildeiza00-code (educacional)
-
-IMPORTANTE: Use apenas em jogos próprios/testes. Não use para trapacear!
---]]
+-- Teleporte disfarçado de movimento (para anti-cheat tipo "shake")
+-- Use em executores como Delta, Synapse, Arceus X
 
 local player = game.Players.LocalPlayer
-local char = player.Character or player.CharacterAdded:Wait()
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local pathLength = 12 -- distância total do "teleporte"
+local stepCount = 10 -- quantos passos curtos
+local stepDelay = 0.07 -- segundos entre passos
 
--- Função para gerar posição segura próxima
-local function getSafePosition(dist)
-    local root = char:FindFirstChild("HumanoidRootPart")
+local function isSafe(pos, char)
+    local ray = Ray.new(pos + Vector3.new(0, 3, 0), Vector3.new(0, -6, 0))
+    local part, pos2 = workspace:FindPartOnRay(ray, char)
+    return part and part.CanCollide and pos2 and true or false
+end
+
+local function SmoothTeleport()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    for i = 1, 10 do
-        local angle = math.random() * math.pi * 2
-        local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
-        local target = root.Position + offset
-        local ray = Ray.new(target + Vector3.new(0, 3, 0), Vector3.new(0, -6, 0))
-        local part, pos = workspace:FindPartOnRay(ray, char)
-        if part and part.CanCollide then
-            return Vector3.new(target.X, pos.Y + 2, target.Z)
-        end
+
+    -- Calcula direção para frente
+    local dir = root.CFrame.lookVector
+    -- Divide caminho em passos
+    for i = 1, stepCount do
+        local step = dir * (pathLength / stepCount)
+        local newPos = root.Position + step
+
+        -- Checa se é seguro
+        if not isSafe(newPos, char) then break end
+
+        -- Move suavemente (Tween)
+        local tween = TweenService:Create(root, TweenInfo.new(stepDelay, Enum.EasingStyle.Linear), {CFrame = CFrame.new(newPos)})
+        tween:Play()
+        tween.Completed:Wait()
+        task.wait(0.01)
     end
 end
 
--- Função de teleporte suave
-local function SafeTeleport()
-    char = player.Character or player.CharacterAdded:Wait()
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root or humanoid.Health <= 0 then return end
-
-    local safePos = getSafePosition(math.random(8, 14))
-    if not safePos then return end
-
-    -- Tween para suavizar (menos detectável)
-    local tween = TweenService:Create(root, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(safePos)})
-    tween:Play()
-end
-
--- Criar GUI
+-- GUI
 if player.PlayerGui:FindFirstChild("TeleGUI") then
     player.PlayerGui:FindFirstChild("TeleGUI"):Destroy()
 end
@@ -70,13 +64,13 @@ Button.TextSize = 22
 Button.Text = "TELEPORTAR"
 Button.Parent = Frame
 
-Button.MouseButton1Click:Connect(SafeTeleport)
+Button.MouseButton1Click:Connect(SmoothTeleport)
 
 -- Hotkey T
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
-        SafeTeleport()
+        SmoothTeleport()
     end
 end)
 
@@ -101,5 +95,3 @@ UIS.InputChanged:Connect(function(input)
         Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-
--- FIM DO SCRIPT
